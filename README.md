@@ -2,7 +2,9 @@
 
 서비스 흐름을 **분기 라인 위 씬 프리뷰**로 조망·편집하는 데스크톱 앱(Electron). mac·Windows 지원.
 
+- **뷰어: React + TypeScript + React Flow** (v7) — 팬/줌(Ctrl+휠)·미니맵·탭별 뷰포트 기억
 - 탭(플로우)·분기(트렁크/라운드 커넥터)·범주(⌐¬)·노트·테마·씬 갤러리·드래그 편집·Ctrl+Z
+- 앱 라이트/다크 테마(⚙ 설정)
 - 데이터는 프로젝트별 폴더(`flow.json` + `scenes/`) — 도구와 분리, **편집은 flow.json에 자동 저장**
 - claude.ai/design 연동(선택): 씬별 편집 딥링크, 디자인 시스템 바로가기, flow-sync 스킬 설치 버튼
 - **앱 내 '⟳ 업데이트 확인'** — 새 릴리스를 확인하고 설치 파일을 받아 수동 업데이트(서명/공증 불필요 구조)
@@ -19,9 +21,13 @@
 
 ```
 npm install
-npm start                  # 현재 소스로 실행
-npx electron-builder --win # 로컬 인스톨러 빌드
+npm start                  # vite build 후 Electron 실행
+npm run dev                # 뷰어만 브라우저 개발 서버 (정적 모드, ?data= 로 데이터 지정)
+npm run dist               # 로컬 인스톨러 빌드
 ```
+
+뷰어 소스는 `src/` (React + TS), 빌드 출력은 `web/` — Electron(main.js)과 Go 서버(main.go embed)가 그대로 서빙한다.
+레이아웃 좌표 계산은 `src/layout.ts`, 캔버스 인터랙션은 `src/components/FlowCanvas.tsx`.
 
 ### Go 서버 (헤드리스/폴백)
 

@@ -22,7 +22,7 @@ var webFS embed.FS
 //go:embed skills/flow-sync/SKILL.md
 var skillMD []byte
 
-const version = "5.0.0"
+const version = "7.0.0"
 
 func main() {
 	port := flag.Int("port", 8123, "포트")
