@@ -227,6 +227,8 @@ dialog::backdrop{background:rgba(32,40,42,.45)}
     </span>
   </div>
   <div class="tools">
+    <button id="projBtn" style="display:none" title="다른 프로젝트 폴더 열기">📂 프로젝트</button>
+    <button id="updBtn" style="display:none" title="새 버전 확인 후 수동 업데이트">⟳ 업데이트 확인</button>
     <button id="designBtn" style="display:none" title="claude.ai/design 디자인 시스템 열기">↗ 디자인 시스템</button>
     <button id="skillBtn" style="display:none" title="flow-sync 스킬을 이 프로젝트의 .claude/skills에 설치">⤓ 스킬 설치</button>
     <button id="linkBtn" title="File System Access로 flow.json에 실시간 자동 저장">🔗 flow.json 연결</button>
@@ -1522,7 +1524,52 @@ function normalize(d) {
   activeTab = localStorage.getItem(LS_TAB) || 'all';
   ui = (() => { try { return JSON.parse(localStorage.getItem(LS_UI)) || {}; } catch (e) { return {}; } })();
   ui.sceneTheme = ui.sceneTheme || {};
-  if (SERVER) document.getElementById('linkBtn').style.display = 'none';
+  if (SERVER) {
+    document.getElementById('linkBtn').style.display = 'none';
+    if (SERVER.version) document.querySelector('.ver').textContent = 'v' + SERVER.version;
+    if (SERVER.canPick) {
+      const pb = document.getElementById('projBtn');
+      pb.style.display = '';
+      pb.onclick = async () => {
+        const r = await (await fetch('api/pick-folder', { method: 'POST' })).json();
+        if (r.ok) location.reload();
+      };
+    }
+    if (SERVER.canUpdate) {
+      const ub = document.getElementById('updBtn');
+      ub.style.display = '';
+      ub.onclick = async () => {
+        ub.disabled = true; ub.textContent = '확인 중…';
+        const reset = () => { ub.disabled = false; ub.textContent = '⟳ 업데이트 확인'; };
+        try {
+          const r = await (await fetch('api/update-check', { method: 'POST' })).json();
+          reset();
+          if (!r.ok) { await askInfo('업데이트 확인 실패: ' + (r.error || '')); return; }
+          if (!r.hasUpdate) { await askInfo('최신 버전입니다 (v' + r.current + ')'); return; }
+          if (await askConfirm('새 버전 v' + r.latest + ' 이 있어요. 지금 다운로드할까요?\n(받은 설치 파일로 수동 업데이트)')) {
+            ub.disabled = true; ub.textContent = '다운로드 중…';
+            const d = await (await fetch('api/update-download', { method: 'POST' })).json();
+            reset();
+            if (d.ok) await askInfo('다운로드 완료 — 열린 설치 파일을 실행하면 업데이트가 끝나요.\n' + d.path);
+            else await askInfo('다운로드 실패: ' + (d.error || ''));
+          }
+        } catch (e) { reset(); await askInfo('업데이트 확인 실패: ' + e.message); }
+      };
+    }
+    if (SERVER.needProject) {
+      document.getElementById('map').innerHTML =
+        '<div style="padding:90px 40px;text-align:center;color:#7E8B88;line-height:2.2">' +
+        '<div style="font-size:16px;font-weight:700;color:#20282A">열 프로젝트가 없어요</div>' +
+        'flow.json이 있는 데이터 폴더를 선택해주세요.<br><br>' +
+        '<button id="openProj" style="font:inherit;font-weight:700;padding:12px 22px;border-radius:12px;' +
+        'border:none;background:#C9432C;color:#fff;cursor:pointer">📂 프로젝트 폴더 열기</button></div>';
+      document.getElementById('openProj').onclick = async () => {
+        const r = await (await fetch('api/pick-folder', { method: 'POST' })).json();
+        if (r.ok) location.reload();
+      };
+      return;
+    }
+  }
   // 구버전(하비팅 전용 v3) localStorage 마이그레이션
   if (!localStorage.getItem(LS) && DATA.includes('hobiting') && localStorage.getItem('hobiting-flow-v3')) {
     localStorage.setItem(LS, localStorage.getItem('hobiting-flow-v3'));

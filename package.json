@@ -1,0 +1,41 @@
+{
+  "name": "flow-map",
+  "version": "6.0.0",
+  "description": "씬 플로우 맵 — 분기 라인 위 씬 프리뷰로 서비스 흐름을 조망·편집",
+  "main": "main.js",
+  "author": "youjeonghan",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "dev.youjeonghan.flowmap",
+    "productName": "flow-map",
+    "files": [
+      "main.js",
+      "package.json",
+      "web/**",
+      "skills/**"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "artifactName": "flow-map-setup-${version}.exe"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "flow-map-${version}-${arch}.${ext}"
+    }
+  }
+}

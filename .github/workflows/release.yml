@@ -8,7 +8,37 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  electron-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npx electron-builder --win --publish never
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/flow-map-setup-*.exe
+
+  electron-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npx electron-builder --mac --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/flow-map-*.dmg
+            dist/flow-map-*.zip
+
+  go-server:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -29,8 +59,7 @@ jobs:
         run: |
           mkdir -p dist
           go build -trimpath -ldflags "-s -w" \
-            -o "dist/flow-map-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}" .
-      - name: Attach to release
-        uses: softprops/action-gh-release@v2
+            -o "dist/flow-map-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}" .
+      - uses: softprops/action-gh-release@v2
         with:
           files: dist/*

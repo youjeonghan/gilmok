@@ -1,6 +1,16 @@
 # flow-map 버전 기록
 
-릴리스는 git 태그(`vX.Y.Z`)로 관리 — 태그 푸시 시 GitHub Actions가 OS별 바이너리를 빌드해 Release에 첨부한다.
+릴리스는 git 태그(`vX.Y.Z`)로 관리 — 태그 푸시 시 GitHub Actions가 OS별 설치 파일을 빌드해 Release에 첨부한다.
+
+## v6.0.0 — 2026-08-04
+
+**Electron 데스크톱 앱 전환.** 자체 창·인스톨러·수동 업데이트 체계.
+
+- Electron 메인 프로세스가 내부 HTTP 서버(127.0.0.1)로 뷰어·데이터를 서빙 — 기존 서버 모드 API 재사용
+- **📂 프로젝트 폴더 열기**(네이티브 다이얼로그) + 마지막 프로젝트 기억(최근 10개 저장)
+- **⟳ 업데이트 확인** 버튼 — GitHub Release 최신 버전 비교 → 설치 파일 다운로드 → 수동 설치(서명/공증 불필요). private 릴리스는 gh CLI 토큰/설정 토큰 자동 사용
+- 외부 링크(claude.ai 등)는 기본 브라우저로, 씬 실물 보기는 내부 창으로 분리
+- 릴리스 파이프라인 개편: Windows NSIS 인스톨러(`flow-map-setup-*.exe`) + mac dmg/zip + Go 서버 바이너리(`flow-map-server-*`, 헤드리스 폴백)
 
 ## v5.0.0 — 2026-08-04
 
