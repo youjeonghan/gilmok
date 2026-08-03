@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "service": { "name": "새 서비스", "icon": "", "designUrl": "" },
+  "tabs": [
+    { "id": "main", "title": "메인", "start": null }
+  ],
+  "scenes": {},
+  "flows": []
+}
