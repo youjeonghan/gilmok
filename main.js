@@ -6,8 +6,14 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
+const { WebSocketServer } = require('ws');
+
+// pty는 프리빌트(@lydell/node-pty) — 로드 실패 시 터미널 기능만 비활성
+let ptyMod = null;
+try { ptyMod = require('@lydell/node-pty'); } catch (e) { console.warn('node-pty 로드 실패:', e.message); }
 
 const VERSION = require('./package.json').version;
+const APP_NAME = '길목';
 const REPO = 'youjeonghan/flow-map';
 const WEB_DIR = path.join(__dirname, 'web');
 const SKILL_SRC = path.join(__dirname, 'skills', 'flow-sync', 'SKILL.md');
@@ -15,6 +21,92 @@ const SKILL_SRC = path.join(__dirname, 'skills', 'flow-sync', 'SKILL.md');
 let win = null;
 let dataDir = null;
 let baseURL = '';
+
+/* ---------- 터미널 세션 (claude CLI on pty) ---------- */
+// 패널을 닫아도 세션은 유지 — WS 재접속 시 버퍼 리플레이로 복원
+let term = null; // { p, buffer: string[], bufLen, ws }
+function termSpawn(cols, rows) {
+  const cwd = dataDir || app.getPath('home');
+  let file, args;
+  if (process.platform === 'win32') {
+    file = process.env.ComSpec || 'cmd.exe';
+    args = ['/s', '/c', 'claude'];
+  } else {
+    file = process.env.SHELL || '/bin/zsh';
+    args = ['-l', '-c', 'claude'];
+  }
+  const p = ptyMod.spawn(file, args, {
+    name: 'xterm-256color',
+    cols: cols || 100, rows: rows || 30,
+    cwd, env: { ...process.env }
+  });
+  term = { p, buffer: [], bufLen: 0, ws: (term && term.ws) || null };
+  p.onData(d => {
+    term.buffer.push(d);
+    term.bufLen += d.length;
+    while (term.bufLen > 200000 && term.buffer.length > 1) {
+      term.bufLen -= term.buffer[0].length;
+      term.buffer.shift();
+    }
+    if (term.ws && term.ws.readyState === 1) term.ws.send(JSON.stringify({ t: 'o', d }));
+  });
+  p.onExit(({ exitCode }) => {
+    if (term) {
+      term.p = null;
+      if (term.ws && term.ws.readyState === 1) term.ws.send(JSON.stringify({ t: 'exit', code: exitCode }));
+    }
+  });
+}
+function attachTermWS(ws) {
+  if (!ptyMod) { ws.send(JSON.stringify({ t: 'err', msg: '이 빌드에서는 터미널을 사용할 수 없어요 (pty 모듈 로드 실패)' })); ws.close(); return; }
+  if (term && term.ws && term.ws !== ws) { try { term.ws.close(); } catch (e) {} }
+  if (!term || !term.p) {
+    try { termSpawn(); } catch (e) {
+      ws.send(JSON.stringify({ t: 'err', msg: 'claude 실행 실패: ' + e.message }));
+      return;
+    }
+  }
+  term.ws = ws;
+  ws.send(JSON.stringify({ t: 'hello', cwd: dataDir || '', replay: term.buffer.join('') }));
+  ws.on('message', raw => {
+    let m;
+    try { m = JSON.parse(raw.toString()); } catch (e) { return; }
+    if (!term) return;
+    if (m.t === 'i' && term.p) term.p.write(m.d);
+    else if (m.t === 'r' && term.p && m.cols > 0 && m.rows > 0) {
+      try { term.p.resize(m.cols, m.rows); } catch (e) {}
+    } else if (m.t === 'restart') {
+      if (term.p) { try { term.p.kill(); } catch (e) {} }
+      term.buffer = []; term.bufLen = 0; term.p = null;
+      try {
+        termSpawn(m.cols, m.rows);
+        term.ws = ws;
+        ws.send(JSON.stringify({ t: 'restarted' }));
+      } catch (e) { ws.send(JSON.stringify({ t: 'err', msg: 'claude 실행 실패: ' + e.message })); }
+    }
+  });
+  ws.on('close', () => { if (term && term.ws === ws) term.ws = null; });
+}
+
+/* ---------- flow.json 외부 변경 감시 (SSE) ---------- */
+const sseClients = new Set();
+let watcher = null, watchTimer = null;
+function broadcastFlowChange() {
+  for (const res of sseClients) {
+    try { res.write('data: change\n\n'); } catch (e) {}
+  }
+}
+function watchDataDir() {
+  if (watcher) { try { watcher.close(); } catch (e) {} watcher = null; }
+  if (!dataDir) return;
+  try {
+    watcher = fs.watch(dataDir, (ev, fn) => {
+      if (fn !== 'flow.json') return;
+      clearTimeout(watchTimer);
+      watchTimer = setTimeout(broadcastFlowChange, 150);
+    });
+  } catch (e) {}
+}
 
 /* ---------- 설정 (최근 프로젝트) ---------- */
 const configPath = () => path.join(app.getPath('userData'), 'config.json');
@@ -153,13 +245,26 @@ function startServer() {
         if (u.startsWith('/api/health')) {
           return sendJSON(res, {
             version: VERSION,
+            appName: APP_NAME,
             dataDir: dataDir || '',
             projectKey: dataDir || '(none)',
             skillInstalled: dataDir ? skillInstalled(dataDir) : false,
             needProject: !dataDir,
             canPick: true,
-            canUpdate: true
+            canUpdate: true,
+            canTerm: !!ptyMod
           });
+        }
+        if (u.startsWith('/api/flow-events')) {
+          res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-store',
+            Connection: 'keep-alive'
+          });
+          res.write(': hi\n\n');
+          sseClients.add(res);
+          req.on('close', () => sseClients.delete(res));
+          return;
         }
         if (u.startsWith('/api/pick-folder')) {
           if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
@@ -173,6 +278,7 @@ function startServer() {
           cfg.lastProject = dataDir;
           cfg.recent = [dataDir, ...(cfg.recent || []).filter(p => p !== dataDir)].slice(0, 10);
           saveConfig(cfg);
+          watchDataDir();
           return sendJSON(res, { ok: true, dataDir });
         }
         if (u.startsWith('/api/flow')) {
@@ -228,6 +334,8 @@ function startServer() {
         res.writeHead(500); res.end(String(e));
       }
     });
+    const wss = new WebSocketServer({ server, path: '/api/term' });
+    wss.on('connection', attachTermWS);
     server.listen(0, '127.0.0.1', () => resolve(server.address().port));
   });
 }
@@ -236,7 +344,7 @@ function startServer() {
 function createWindow() {
   win = new BrowserWindow({
     width: 1560, height: 980,
-    title: 'flow-map',
+    title: APP_NAME,
     autoHideMenuBar: true,
     webPreferences: { nodeIntegration: false, contextIsolation: true }
   });
@@ -253,6 +361,7 @@ app.whenReady().then(async () => {
   if (cfg.lastProject && fs.existsSync(path.join(cfg.lastProject, 'flow.json'))) {
     dataDir = cfg.lastProject;
   }
+  watchDataDir();
   const port = await startServer();
   baseURL = `http://127.0.0.1:${port}/`;
   console.log('flow-map v' + VERSION + ' → ' + baseURL + (dataDir ? ' (데이터: ' + dataDir + ')' : ' (프로젝트 미선택)'));

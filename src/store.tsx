@@ -53,6 +53,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const keys = useRef({ LS: '', LS_TAB: '', LS_UI: '' });
+  const dataRef = useRef('./');
   const hist = useRef({ past: [] as string[], future: [] as string[], lastSnap: null as string | null });
   const saveTimer = useRef<any>(null);
   const docRef = useRef<FlowDoc | null>(null);
@@ -138,7 +139,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const LS = 'flow-map:' + ((srv && srv.projectKey) ? srv.projectKey : data);
       keys.current = { LS, LS_TAB: LS + ':tab', LS_UI: LS + ':ui' };
       setServer(srv); serverRef.current = srv;
-      setDATA(data);
+      setDATA(data); dataRef.current = data;
       setTab(localStorage.getItem(keys.current.LS_TAB) || 'all');
       try {
         const u = JSON.parse(localStorage.getItem(keys.current.LS_UI) || '{}');
@@ -185,6 +186,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     })();
   }, []);
+
+  /* ---------- flow.json 외부 변경 감시 (서버 모드 — AI/외부 편집 자동 반영) ---------- */
+  useEffect(() => {
+    if (phase !== 'ready' || !serverRef.current) return;
+    const es = new EventSource('api/flow-events');
+    es.onmessage = async () => {
+      const cur = docRef.current;
+      if (!cur) return;
+      try {
+        const d = normalize(await (await fetch(dataRef.current + 'flow.json?t=' + Date.now())).json());
+        const snap = clean(d);
+        if (snap === clean(cur)) return; // 자체 저장 에코는 무시
+        // 외부 편집도 실행 취소 히스토리에 쌓는다 (Ctrl+Z로 되돌리기 가능)
+        const h = hist.current;
+        if (h.lastSnap !== null && snap !== h.lastSnap) {
+          h.past.push(h.lastSnap);
+          if (h.past.length > 60) h.past.shift();
+          h.future.length = 0;
+        }
+        h.lastSnap = snap;
+        setDoc(d);
+        try { localStorage.setItem(keys.current.LS, snap); } catch {}
+      } catch {}
+    };
+    return () => es.close();
+  }, [phase]);
 
   /* ---------- 실행 취소 단축키 ---------- */
   useEffect(() => {

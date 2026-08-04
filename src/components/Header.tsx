@@ -5,8 +5,8 @@ import { useActions } from '../actions';
 import { useDialogs } from '../dialogs';
 import { pickFolder, installSkill, updateCheck, updateDownload } from '../api';
 
-const VER = '7.0';
-const APP_NAME = 'flow-map'; // 앱 자체 이름 (네이밍 확정 시 여기만 변경)
+const VER = '7.1';
+const APP_NAME = '길목'; // 저장소·실행파일명은 flow-map 유지, 표시 이름만 길목
 
 /** 앱 로고 — 씬 카드 두 장을 ㄴ자 커넥터로 잇는 글리프 */
 function AppLogo({ size = 20 }: { size?: number }) {
@@ -160,6 +160,11 @@ export function Header() {
         </span>
       </div>
       <div className="tools">
+        {server?.canTerm && (
+          <button className={ui.termOpen ? 'on' : ''}
+            title="Claude Code 터미널 — 데이터 폴더에서 실행 (구독 로그인 그대로 사용)"
+            onClick={() => setUI({ termOpen: !ui.termOpen })}>⌨ 터미널</button>
+        )}
         {server?.canPick && (
           <button title="다른 프로젝트 폴더 열기" onClick={async () => {
             const r = await pickFolder();

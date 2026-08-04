@@ -55,12 +55,14 @@ export interface FlowDoc {
 
 export interface ServerInfo {
   version: string;
+  appName?: string;
   dataDir: string;
   projectKey: string;
   skillInstalled: boolean;
   needProject: boolean;
   canPick: boolean;
   canUpdate: boolean;
+  canTerm?: boolean;
 }
 
 /** localStorage에 저장하는 로컬 UI 상태 (문서 아님) */
@@ -69,6 +71,8 @@ export interface UIState {
   globalTheme?: string;
   pickBig?: boolean;
   viewport?: Record<string, { x: number; y: number; zoom: number }>; // 탭별 뷰포트
+  termOpen?: boolean;
+  termW?: number;
 }
 
 export function normalize(d: any): FlowDoc {
