@@ -2,12 +2,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow, ReactFlowProvider, Background, BackgroundVariant, Controls, MiniMap,
-  ViewportPortal, applyNodeChanges, useReactFlow,
+  ViewportPortal, applyNodeChanges, useReactFlow, useUpdateNodeInternals,
   type Node, type Edge, type NodeChange, type NodeTypes, type EdgeTypes, type Viewport
 } from '@xyflow/react';
 import { useStore } from '../store';
 import { useActions } from '../actions';
-import { titleOf, bracketAt, FlowLane } from '../types';
+import { titleOf, bracketAt, themePath, thumbUrl, FlowLane } from '../types';
 import {
   computeLayout, sceneNodeIdFor, CARD_W, type LaneRow, type LNode
 } from '../layout';
@@ -57,7 +57,7 @@ interface LabelDrag {
 }
 
 function CanvasInner({ view }: { view: string }) {
-  const { doc, ui, setUI, appTheme } = useStore();
+  const { doc, ui, setUI, appTheme, server } = useStore();
   const acts = useActions();
   const { screenToFlowPosition, fitView, setViewport, getViewport, zoomIn, zoomOut } = useReactFlow();
   const dark = appTheme === 'dark';
@@ -72,11 +72,13 @@ function CanvasInner({ view }: { view: string }) {
   const sizesRef = useRef(new Map<string, { w: number; h: number }>());
   const pillRef = useRef(new Map<string, number>());
   const [sizesVer, setSizesVer] = useState(0);
-  const bumpQueued = useRef(false);
+  const bumpTimer = useRef<any>(null);
+  /* 트레일링 디바운스 — 초기 측정 폭주 중에 노드 배열을 갈아끼우면
+     RF의 dimension 디스패치와 경합해 측정이 통째로 유실될 수 있다.
+     이벤트가 잠잠해진 뒤(120ms) 한 번만 레이아웃을 재계산한다. */
   const bumpSizes = useCallback(() => {
-    if (bumpQueued.current) return;
-    bumpQueued.current = true;
-    requestAnimationFrame(() => { bumpQueued.current = false; setSizesVer(v => v + 1); });
+    clearTimeout(bumpTimer.current);
+    bumpTimer.current = setTimeout(() => setSizesVer(v => v + 1), 120);
   }, []);
   const reportPill = useCallback((fid: string, w: number) => {
     const prev = pillRef.current.get(fid);
@@ -116,11 +118,26 @@ function CanvasInner({ view }: { view: string }) {
       const prevMap = new Map(prev.map(n => [n.id, n]));
       return layout.nodes.map(n => {
         const p = prevMap.get(n.id);
-        // measured를 보존해야 RF가 노드를 다시 '측정 대기(hidden)'로 되돌리지 않는다
+        // measured를 보존해야 RF가 노드를 '측정 대기(hidden)'로 되돌리지 않는다
         return { ...toRF(n), selected: p?.selected ?? false, measured: p?.measured };
       });
     });
   }, [layout]);
+
+  /* 노드 배열 재구성이 RF의 dimension 이벤트와 경합하면 일부 노드가 measured 없이
+     (=hidden, 미니맵 제외, 엣지 미표시) 갇힐 수 있다 — 감지해서 강제 재측정 */
+  /* 안전망 — 그래도 measured 없이 갇힌 노드가 있으면 강제 재측정 */
+  const updateNodeInternals = useUpdateNodeInternals();
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setRfNodes(cur => {
+        const missing = cur.filter(n => !n.measured || (n.measured as any).width == null).map(n => n.id);
+        if (missing.length) updateNodeInternals(missing);
+        return cur;
+      });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [layout, updateNodeInternals]);
 
   const rfEdges = useMemo<Edge[]>(() => layout.edges.map(e => ({
     id: e.id, type: e.type, source: e.source, sourceHandle: e.sourceHandle,
@@ -181,7 +198,7 @@ function CanvasInner({ view }: { view: string }) {
         }));
       dragRef.current = {
         kind: 'label', flowId: d.flowId,
-        ghost: makeGhost('Move branch “' + f.label + '”'), targets, hit: null
+        ghost: makeGhost('Branch 「' + f.label + '」 이동'), targets, hit: null
       };
       document.body.classList.add('noselect');
     }
@@ -200,7 +217,7 @@ function CanvasInner({ view }: { view: string }) {
       }
       drag.hit = hit;
       setCui(c => (c.anchorTarget === (hit?.nodeId ?? null) ? c : { ...c, anchorTarget: hit?.nodeId ?? null }));
-      drag.ghost.status(hit ? `Branch from “${titleOf(doc, hit.sid)}”` : 'Drop on a scene (release to cancel)', !!hit);
+      drag.ghost.status(hit ? `「${titleOf(doc, hit.sid)}」에서 Branch` : '빈 곳에 놓으면 위치 이동 · Scene 위는 재앵커', !!hit);
       return;
     }
 
@@ -212,7 +229,7 @@ function CanvasInner({ view }: { view: string }) {
       drag.cur = null; drag.slot = null; drag.join = null;
       setDropbar(null);
       setCui(c => ({ ...c, shift: null, hotBracket: null }));
-      drag.ghost.status("Can't drop here (release to cancel)", false);
+      drag.ghost.status('여기엔 놓을 수 없어요 (놓으면 원위치)', false);
       return;
     }
     const f = doc.flows.find(x => x.id === lane.flowId)!;
@@ -256,9 +273,9 @@ function CanvasInner({ view }: { view: string }) {
       y: lane.laneTop + ((f.brackets || []).length ? 60 : 8),
       h: 120
     });
-    const crossing = f.id !== drag.flowId ? 'To “' + f.label + '” · ' : '';
+    const crossing = f.id !== drag.flowId ? '「' + f.label + '」 라인으로 · ' : '';
     drag.ghost.status(
-      crossing + (join != null ? 'into bracket “' + f.brackets[join].label + '”' : 'no bracket'),
+      crossing + (join != null ? 'Bracket 「' + f.brackets[join].label + '」에 편입' : '독립 (Bracket 없음)'),
       join != null);
   }, [doc, layout, screenToFlowPosition]);
 
@@ -313,6 +330,44 @@ function CanvasInner({ view }: { view: string }) {
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
+
+  /* ---- 미니맵 실사 썸네일 ---- */
+  const miniInfo = useMemo(() => {
+    const m: Record<string, { kind: string; url?: string }> = {};
+    if (!doc) return m;
+    for (const n of layout.nodes) {
+      if (n.type === 'scene') {
+        const sid = (n.data as any).sid as string;
+        const sc = doc.scenes[sid];
+        const theme = ui.sceneTheme[sid] || ui.globalTheme || 'default';
+        const p = sc ? themePath(sc, theme) : null;
+        m[n.id] = {
+          kind: 'scene',
+          url: server?.canThumb && p ? thumbUrl(p, sc?.updated) : undefined
+        };
+      } else {
+        m[n.id] = { kind: n.type };
+      }
+    }
+    return m;
+  }, [layout, doc, ui.sceneTheme, ui.globalTheme, server]);
+
+  const MiniNode = useCallback((p: any) => {
+    const info = miniInfo[p.id];
+    if (!info) return null;
+    if (info.kind === 'scene') {
+      return info.url
+        ? <image href={info.url} x={p.x} y={p.y} width={p.width} height={p.height}
+            preserveAspectRatio="xMidYMin slice" />
+        : <rect x={p.x} y={p.y} width={p.width} height={p.height} rx={10}
+            fill={dark ? '#8A5A50' : '#EBB3A6'} />;
+    }
+    if (info.kind === 'bracket') {
+      return <rect x={p.x} y={p.y} width={p.width} height={p.height} rx={6}
+        fill={dark ? '#3E5A54' : '#BFD5D0'} />;
+    }
+    return null; // 라벨·캡션은 미니맵에서 생략
+  }, [miniInfo, dark]);
 
   /* ---- 뷰포트 저장/복원 ---- */
   const savedVp = ui.viewport?.[view];
@@ -380,8 +435,7 @@ function CanvasInner({ view }: { view: string }) {
         <MiniMap
           position="bottom-right"
           pannable zoomable
-          nodeColor={n => n.type === 'scene' ? (dark ? '#8A5A50' : '#EBB3A6')
-            : n.type === 'bracket' ? (dark ? '#3E5A54' : '#BFD5D0') : 'transparent'}
+          nodeComponent={MiniNode}
           maskColor={dark ? 'rgba(27,29,31,.78)' : 'rgba(244,242,237,.75)'}
         />
         {dropbar && (
@@ -395,8 +449,8 @@ function CanvasInner({ view }: { view: string }) {
           <button onClick={() => {
             const m = menu; setMenu(null); clearSelection();
             acts.makeBracket(m.flowId, m.lo, m.hi);
-          }}>⌐ Bracket {menu.count} scene{menu.count > 1 ? 's' : ''}</button>
-          <button onClick={() => { setMenu(null); clearSelection(); }}>Clear selection</button>
+          }}>⌐ Bracket으로 묶기 ({menu.count}개 Scene)</button>
+          <button onClick={() => { setMenu(null); clearSelection(); }}>선택 해제</button>
         </div>
       )}
     </CanvasCtx.Provider>

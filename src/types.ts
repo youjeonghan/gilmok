@@ -63,7 +63,12 @@ export interface ServerInfo {
   canPick: boolean;
   canUpdate: boolean;
   canTerm?: boolean;
+  canThumb?: boolean;
 }
+
+/** 씬 썸네일 PNG URL (서버 모드) — v로 캐시 무효화 */
+export const thumbUrl = (file: string, v?: string) =>
+  'api/thumb?f=' + encodeURIComponent(file) + (v ? '&v=' + encodeURIComponent(v) : '');
 
 /** localStorage에 저장하는 로컬 UI 상태 (문서 아님) */
 export interface UIState {

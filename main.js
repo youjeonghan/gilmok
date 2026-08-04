@@ -5,6 +5,8 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const { pathToFileURL } = require('url');
 const { execFile } = require('child_process');
 const { WebSocketServer } = require('ws');
 
@@ -86,6 +88,59 @@ function attachTermWS(ws) {
     }
   });
   ws.on('close', () => { if (term && term.ws === ws) term.ws = null; });
+}
+
+/* ---------- 씬 PNG 썸네일 (카드·미니맵·삽입 프리뷰용 실사 축소판) ----------
+ * 오프스크린 창으로 씬 HTML을 렌더 → capturePage → 640px PNG로 캐시.
+ * 캐시 키 = 경로 해시 + mtime → 씬 파일이 바뀌면 자동 재생성. */
+const THUMB_W = 640;
+const thumbDir = () => path.join(app.getPath('userData'), 'thumbs');
+let thumbWin = null;
+let thumbChain = Promise.resolve();
+const thumbKey = rel => crypto.createHash('sha1').update(rel).digest('hex').slice(0, 16);
+function generateThumb(absFile, out) {
+  const work = (async () => {
+    if (!thumbWin || thumbWin.isDestroyed()) {
+      thumbWin = new BrowserWindow({
+        show: false, width: 1280, height: 800, frame: false,
+        webPreferences: { offscreen: true, sandbox: true, backgroundThrottling: false }
+      });
+    }
+    await thumbWin.loadURL(pathToFileURL(absFile).href);
+    await new Promise(r => setTimeout(r, 450)); // 폰트·초기 렌더 안정화
+    const img = await thumbWin.webContents.capturePage();
+    const png = img.resize({ width: THUMB_W }).toPNG();
+    fs.mkdirSync(thumbDir(), { recursive: true });
+    fs.writeFileSync(out, png);
+    return out;
+  })();
+  const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('thumb timeout')), 10000));
+  return Promise.race([work, timeout]);
+}
+function getThumb(rel) {
+  const base = path.normalize(dataDir);
+  const abs = path.normalize(path.join(base, rel));
+  if (!abs.startsWith(base)) return Promise.reject(new Error('bad path'));
+  const st = fs.statSync(abs);
+  const out = path.join(thumbDir(), thumbKey(rel) + '-' + Math.round(st.mtimeMs) + '.png');
+  if (fs.existsSync(out)) return Promise.resolve(out);
+  const job = thumbChain.then(() => {
+    if (fs.existsSync(out)) return out;
+    return generateThumb(abs, out).then(p => {
+      // 같은 씬의 옛 mtime 캐시 정리
+      const prefix = thumbKey(rel) + '-';
+      try {
+        for (const f of fs.readdirSync(thumbDir())) {
+          if (f.startsWith(prefix) && path.join(thumbDir(), f) !== out) {
+            try { fs.unlinkSync(path.join(thumbDir(), f)); } catch (e) {}
+          }
+        }
+      } catch (e) {}
+      return p;
+    });
+  });
+  thumbChain = job.catch(() => {});
+  return job;
 }
 
 /* ---------- flow.json 외부 변경 감시 (SSE) ---------- */
@@ -252,8 +307,20 @@ function startServer() {
             needProject: !dataDir,
             canPick: true,
             canUpdate: true,
-            canTerm: !!ptyMod
+            canTerm: !!ptyMod,
+            canThumb: true
           });
+        }
+        if (u.startsWith('/api/thumb')) {
+          if (!dataDir) { res.writeHead(404); return res.end(); }
+          const rel = new URL(u, 'http://x').searchParams.get('f') || '';
+          try {
+            const p = await getThumb(rel);
+            res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-cache' });
+            return res.end(fs.readFileSync(p));
+          } catch (e) {
+            res.writeHead(404); return res.end();
+          }
         }
         if (u.startsWith('/api/flow-events')) {
           res.writeHead(200, {

@@ -52,20 +52,20 @@ export function Header() {
 
   const openSettings = async () => {
     const hasUploaded = (s.icon || '').startsWith('data:');
-    const r = await dialogs.ask('Settings', [
+    const r = await dialogs.ask('설정', [
       {
-        key: 'appTheme', label: 'App theme', type: 'select', value: appTheme,
-        options: [{ label: 'Light', value: 'light' }, { label: 'Dark', value: 'dark' }]
+        key: 'appTheme', label: '앱 테마', type: 'select', value: appTheme,
+        options: [{ label: '라이트', value: 'light' }, { label: '다크', value: 'dark' }]
       },
-      { key: 'name', label: 'Project name', value: s.name || '' },
+      { key: 'name', label: '프로젝트 이름', value: s.name || '' },
       {
         key: 'icon',
-        label: 'Project icon — emoji or image path/URL' + (hasUploaded ? ' (current: uploaded image)' : ''),
-        value: hasUploaded ? '' : (s.icon || ''), placeholder: '🧩 or icon.svg'
+        label: '프로젝트 아이콘 — 이모지 또는 이미지 경로/URL' + (hasUploaded ? ' (현재: 업로드된 이미지)' : ''),
+        value: hasUploaded ? '' : (s.icon || ''), placeholder: '🧩 또는 icon.svg'
       },
-      { key: 'iconFile', label: 'Or upload an image file (overrides the field above)', type: 'file', accept: 'image/*' },
+      { key: 'iconFile', label: '또는 이미지 파일 직접 등록 (선택하면 위 입력보다 우선)', type: 'file', accept: 'image/*' },
       {
-        key: 'designUrl', label: 'Claude Design project URL (scene deep links)',
+        key: 'designUrl', label: '클로드 디자인 프로젝트 URL (Scene 편집 바로가기용)',
         value: s.designUrl || '', placeholder: 'https://claude.ai/design/p/…'
       }
     ]);
@@ -81,7 +81,7 @@ export function Header() {
     } else if (!r.icon && hasUploaded) {
       nextIcon = s.icon; // 파일 미선택 + 입력 비움 → 기존 업로드 유지
     }
-    commit(d => { d.service = { name: r.name || 'Project', icon: nextIcon, designUrl: r.designUrl || '' }; });
+    commit(d => { d.service = { name: r.name || '프로젝트', icon: nextIcon, designUrl: r.designUrl || '' }; });
   };
 
   const onUpdate = async () => {
@@ -89,18 +89,18 @@ export function Header() {
     try {
       const r = await updateCheck();
       setUpdState('idle');
-      if (!r.ok) { await dialogs.askInfo('Update check failed: ' + (r.error || '')); return; }
-      if (!r.hasUpdate) { await dialogs.askInfo('You are on the latest version (v' + r.current + ')'); return; }
-      if (await dialogs.askConfirm('v' + r.latest + ' is available. Download now?\n(Update manually with the downloaded installer)')) {
+      if (!r.ok) { await dialogs.askInfo('업데이트 확인 실패: ' + (r.error || '')); return; }
+      if (!r.hasUpdate) { await dialogs.askInfo('최신 버전입니다 (v' + r.current + ')'); return; }
+      if (await dialogs.askConfirm('새 버전 v' + r.latest + ' 이 있어요. 지금 다운로드할까요?\n(받은 설치 파일로 수동 업데이트)')) {
         setUpdState('downloading');
         const d = await updateDownload();
         setUpdState('idle');
-        if (d.ok) await dialogs.askInfo('Downloaded — run the installer to finish updating.\n' + d.path);
-        else await dialogs.askInfo('Download failed: ' + (d.error || ''));
+        if (d.ok) await dialogs.askInfo('다운로드 완료 — 설치 파일을 실행하면 업데이트가 끝나요.\n' + d.path);
+        else await dialogs.askInfo('다운로드 실패: ' + (d.error || ''));
       }
     } catch (e: any) {
       setUpdState('idle');
-      await dialogs.askInfo('Update check failed: ' + e.message);
+      await dialogs.askInfo('업데이트 확인 실패: ' + e.message);
     }
   };
 
@@ -109,11 +109,11 @@ export function Header() {
       const res = await installSkill();
       if (res.ok) {
         patchServer({ skillInstalled: true });
-        await dialogs.askInfo('flow-sync skill installed — ' + res.path +
-          '\nUse /flow-sync in Claude Code sessions for this project.');
-      } else await dialogs.askInfo('Install failed: ' + (res.error || 'unknown error'));
+        await dialogs.askInfo('flow-sync 스킬 설치 완료 — ' + res.path +
+          '\n이 프로젝트의 Claude Code 세션에서 /flow-sync 로 사용할 수 있어요.');
+      } else await dialogs.askInfo('설치 실패: ' + (res.error || '알 수 없는 오류'));
     } catch (e: any) {
-      await dialogs.askInfo('Install failed: ' + e.message);
+      await dialogs.askInfo('설치 실패: ' + e.message);
     }
   };
 
@@ -131,91 +131,94 @@ export function Header() {
         </span>
         <span className="brsep">—</span>
         <span className={'svc-icon' + (isServer ? ' click' : '')}
-          title={isServer ? 'Open data folder' : undefined}
+          title={isServer ? '데이터 폴더 열기' : undefined}
           onClick={() => { if (isServer) openFolder(); }}>
           {icon && (iconIsImg
             ? <img src={/^(https?:|data:)/.test(icon) ? icon : DATA + icon} alt="" />
             : icon)}
         </span>
-        <em>{s.name || 'Project'}</em>
-        <span className="gtheme" title="Global scene theme">
+        <em>{s.name || '프로젝트'}</em>
+        <span className="gtheme" title="전체 Scene 테마 전환">
           {([['default', 'D'], ['light', 'L'], ['dark', 'N']] as const).map(([t, lb]) => (
             <span key={t}
               className={'tchip' + ((ui.globalTheme || 'default') === t ? ' on' : '')}
-              title={'Switch all scenes to ' + t}
+              title={'전체 Scene을 ' + t + ' 테마로'}
               onClick={() => setUI({ globalTheme: t, sceneTheme: {} })}>{lb}</span>
           ))}
         </span>
         <span className="info">
           <span className="i">i</span>
           <div className="tip">
-            <b>View</b>
+            <b>보기</b>
             <ul>
-              <li>· Click a card = open the scene full-size</li>
-              <li>· Tabs switch flows (All = every flow at once)</li>
-              <li>· Wheel = pan · Ctrl+wheel = zoom · Space+drag = pan</li>
-              <li>· Thumbnail top-right = theme (D/L/N) · ＋ adds a theme</li>
+              <li>· 카드 클릭 = Scene을 실물 크기로 열기</li>
+              <li>· Tab = 플로우 전환 (전체 = 모든 플로우 한눈에)</li>
+              <li>· 휠 = 이동 · Ctrl+휠 = 확대/축소 · 스페이스+드래그 = 화면 이동</li>
+              <li>· 썸네일 우상단 = 테마(D/L/N) · ＋로 테마 등록</li>
             </ul>
-            <b>Edit</b>
+            <b>편집</b>
             <ul>
-              <li>· Drag a card = reorder (across branches too)</li>
-              <li>· Shift+drag to select → right-click = make a bracket</li>
-              <li>· Drag bracket handles = resize its range</li>
-              <li>· Click a label or bracket name = rename in place</li>
-              <li>· Drag a label = re-anchor the branch to another scene</li>
-              <li>· ＋ = insert scene · hover ⑂ = new branch · Add note = memo</li>
+              <li>· 카드 드래그 = 순서 이동 (다른 Branch로도 가능)</li>
+              <li>· Shift+드래그 선택 → 우클릭 = Bracket으로 묶기</li>
+              <li>· Bracket 끝 핸들 드래그 = 범위 조절</li>
+              <li>· 라벨·Bracket 이름 클릭 = 그 자리에서 수정</li>
+              <li>· 라벨 드래그 = Branch를 다른 Scene으로 이동</li>
+              <li>· ＋ = Scene 삽입 · 카드 호버 ⑂ = Branch 추가</li>
             </ul>
-            <b>Save</b>
+            <b>저장</b>
             <ul>
-              <li>· In the app, every edit autosaves to flow.json</li>
-              <li>· On a static server, edits stay in localStorage — use Export</li>
+              <li>· 앱에서는 모든 편집이 flow.json에 자동 저장</li>
+              <li>· 정적 서버에서는 localStorage에 저장 — '내보내기'로 확정</li>
             </ul>
           </div>
         </span>
       </div>
       <div className="tools">
+        {isServer && (
+          <button title="현재 데이터 폴더를 탐색기로 열기" onClick={() => openFolder()}>📂 프로젝트</button>
+        )}
         {server?.canPick && (
-          <button title="Open another project folder" onClick={async () => {
+          <button className="iconbtn" title="다른 프로젝트 폴더로 전환" onClick={async () => {
             const r = await pickFolder();
             if (r.ok) location.reload();
-          }}>📂 Project</button>
+          }}>⇄</button>
         )}
         {server?.canUpdate && (
-          <button title="Check for a new release" disabled={updState !== 'idle'} onClick={onUpdate}>
-            {updState === 'checking' ? 'Checking…' : updState === 'downloading' ? 'Downloading…' : '⟳ Updates'}
+          <button title="새 버전 확인 후 수동 업데이트" disabled={updState !== 'idle'} onClick={onUpdate}>
+            {updState === 'checking' ? '확인 중…' : updState === 'downloading' ? '다운로드 중…' : '⟳ 업데이트 확인'}
           </button>
         )}
         {s.designUrl && (
-          <button title="Open the Claude Design system"
-            onClick={() => window.open(s.designUrl, '_blank')}>↗ Design</button>
+          <button title="claude.ai/design 디자인 시스템 열기"
+            onClick={() => window.open(s.designUrl, '_blank')}>↗ 디자인 시스템</button>
         )}
         {isServer && s.designUrl && server && !server.skillInstalled && (
-          <button title="Install the flow-sync skill into this project's .claude/skills"
-            onClick={onInstallSkill}>⤓ Skill</button>
+          <button title="flow-sync 스킬을 이 프로젝트의 .claude/skills에 설치"
+            onClick={onInstallSkill}>⤓ 스킬 설치</button>
         )}
-        <button onClick={() => dialogs.openExport(cleanDoc())}>Export</button>
-        <button title="App theme · project name/icon" onClick={openSettings}>⚙ Settings</button>
+        <button onClick={() => dialogs.openExport(cleanDoc())}>내보내기</button>
+        <button title="앱 테마 · 프로젝트 이름/아이콘" onClick={openSettings}>⚙ 설정</button>
         {server?.canTerm && (
           <button className={'iconbtn' + (ui.termOpen ? ' on' : '')}
-            title="Claude Code terminal — runs in the data folder (uses your local login)"
+            title="Claude Code 터미널 — 데이터 폴더에서 실행 (구독 로그인 그대로)"
             onClick={() => setUI({ termOpen: !ui.termOpen })}>
             <PanelIcon open={!!ui.termOpen} />
           </button>
         )}
         {!isServer && (
           <button onClick={async () => {
-            if (await dialogs.askConfirm('Discard local edits and reload from flow.json?')) resetToFile();
-          }}>Reset</button>
+            if (await dialogs.askConfirm('편집 내용을 버리고 flow.json 파일 상태로 되돌릴까요?')) resetToFile();
+          }}>편집 초기화</button>
         )}
       </div>
       <nav id="tabs">
         <button className={'tab' + (activeTab === 'all' ? ' on' : '')}
-          onClick={() => setActiveTab('all')}>All</button>
+          onClick={() => setActiveTab('all')}>전체</button>
         {doc.tabs.map(t => (
           <button key={t.id} className={'tab' + (activeTab === t.id ? ' on' : '')}
             onClick={() => setActiveTab(t.id)}>
             {t.title}
-            <span className="tx" title="Delete tab" onClick={async e => {
+            <span className="tx" title="Tab 삭제" onClick={async e => {
               e.stopPropagation();
               if (await acts.deleteTab(t.id, t.title)) {
                 if (activeTab === t.id) setActiveTab('all');
@@ -223,15 +226,15 @@ export function Header() {
             }}>✕</span>
           </button>
         ))}
-        <button className="tab add" title="New flow tab" onClick={async () => {
+        <button className="tab add" title="새 Tab 추가" onClick={async () => {
           const id = await acts.addTab();
           if (id) setActiveTab(id);
         }}>＋ Tab</button>
         <span className="tabsp" />
         <span className="tabdiv" />
         <button className={'tab' + (activeTab === 'scenes' ? ' on' : '')}
-          title="All scenes by category (separate from flows)"
-          onClick={() => setActiveTab('scenes')}>🗂️ Scene Gallery</button>
+          title="모든 Scene을 카테고리별로 모아보기 (플로우와 별개)"
+          onClick={() => setActiveTab('scenes')}>🗂️ Scene 갤러리</button>
       </nav>
     </header>
   );

@@ -70,23 +70,23 @@ export function TerminalPanel({ onClose }: { onClose: () => void }) {
         Claude Code
         <span className="cwd" title={server?.dataDir || ''}>{server?.dataDir || ''}</span>
         <span className="sp" />
-        <button onClick={restart} title="Restart session">⟳ Restart</button>
-        <button onClick={onClose} title="Close panel (session keeps running)">✕</button>
+        <button onClick={restart} title="세션 재시작">⟳ 재시작</button>
+        <button onClick={onClose} title="패널 닫기 (세션은 유지)">✕</button>
       </div>
       <div className="termbox" ref={boxRef} />
       {(dead != null || err) && (
         <div className="termdead">
           <div>
-            {err ? err : `Session ended (code ${dead})`}
+            {err ? err : `세션이 종료됐어요 (코드 ${dead})`}
             {!err && dead !== 0 && (
               <div className="hint">
-                The claude CLI must be installed.<br />
-                Run <code>npm install -g @anthropic-ai/claude-code</code><br />
-                or see claude.com/claude-code.
+                claude CLI가 설치되어 있어야 해요.<br />
+                <code>npm install -g @anthropic-ai/claude-code</code> 또는<br />
+                claude.com/claude-code 설치 안내를 참고해주세요.
               </div>
             )}
           </div>
-          <button onClick={restart}>⟳ Restart</button>
+          <button onClick={restart}>⟳ 다시 시작</button>
         </div>
       )}
     </>

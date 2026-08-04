@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react';
 import { useStore } from '../store';
 import { useActions } from '../actions';
-import { titleOf, themePath } from '../types';
+import { titleOf, themePath, thumbUrl } from '../types';
 import { useCanvasUI, clickSuppressed } from '../canvasui';
 import { InlineEdit } from './InlineEdit';
 import { CARD_W, THUMB_H, RCAP_H, CARD_CENTER } from '../layout';
@@ -17,6 +17,18 @@ export function designEditUrl(designUrl: string | undefined, file: string | null
   if (!designUrl || !file) return null;
   const remote = file.replace(/^scenes\//, '');
   return designUrl + (designUrl.includes('?') ? '&' : '?') + 'file=' + encodeURIComponent(remote);
+}
+
+/** 씬 미리보기 — 서버 모드면 PNG 썸네일, 아니면(또는 실패 시) 라이브 iframe 폴백 */
+export function ScenePreview({ file, v }: { file: string; v?: string }) {
+  const { DATA, server } = useStore();
+  const [fail, setFail] = useState(false);
+  useEffect(() => { setFail(false); }, [file]);
+  if (server?.canThumb && !fail) {
+    return <img className="snap" src={thumbUrl(file, v)} loading="lazy" alt=""
+      onError={() => setFail(true)} />;
+  }
+  return <iframe key={file} src={DATA + file} loading="lazy" tabIndex={-1} />;
 }
 
 /* ---------- 씬 카드 본체 (RF 노드와 갤러리에서 공용) ---------- */
@@ -42,21 +54,21 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas }: {
   return (
     <>
       <div className={'thumb' + (path ? ' click' : ' empty')}
-        title={path ? 'Click to open · drag to move' : undefined}
+        title={path ? '클릭=열기 · 드래그=이동' : undefined}
         onClick={() => {
           if (clickSuppressed()) return;
           if (path) window.open(DATA + path, '_blank');
         }}>
         {path
-          ? <iframe key={path} src={DATA + path} loading="lazy" tabIndex={-1} />
-          : (theme === 'default' ? 'Not built' : `No “${theme}” theme`)}
+          ? <ScenePreview file={path} v={sc.updated} />
+          : (theme === 'default' ? '미제작' : `'${theme}' 테마 미등록`)}
         <div className="themes nodrag">
           {themeNames.map(t => {
             const label = t === 'default' ? 'D' : t === 'light' ? 'L' : t === 'dark' ? 'N' : t === '+' ? '＋' : t.slice(0, 2);
             return (
               <span key={t}
                 className={'tchip' + (t === theme ? ' on' : '')}
-                title={t === '+' ? 'Add theme' : (t + (themePath(sc as any, t) ? '' : ' (none)'))}
+                title={t === '+' ? '테마 등록' : (t + (themePath(sc as any, t) ? '' : ' (미등록)'))}
                 onMouseDown={e => e.stopPropagation()}
                 onClick={async e => {
                   e.stopPropagation();
@@ -74,23 +86,23 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas }: {
       <div className="cap">
         {/* id·수정일은 카드에 노출하지 않고 제목 툴팁으로만 (텍스트 다이어트) */}
         <b title={sid + (sc.updated ? ' · ' + sc.updated : '')}>{titleOf(doc, sid)}</b>
-        {sc.group && <span className="grp nodrag" title="Claude Design category (@dsCard group)">{sc.group}</span>}
+        {sc.group && <span className="grp nodrag" title="클로드 디자인 카테고리 (@dsCard group)">{sc.group}</span>}
       </div>
       {sc.note
-        ? <div className="snote nodrag" title="Edit note"
+        ? <div className="snote nodrag" title="노트 편집"
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); acts.openSceneNote(sid); }}>{sc.note}</div>
         : <span className="addnote nodrag"
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); acts.openSceneNote(sid); }}>Add note</span>}
       <div className="acts nodrag">
-        {tabId && <button title="New branch from this scene"
+        {tabId && <button title="이 Scene에서 Branch 추가"
           onMouseDown={e => e.stopPropagation()}
           onClick={() => acts.addBranch(sid, tabId)}>⑂ Branch</button>}
-        {du && <button title="Edit in Claude Design"
+        {du && <button title="클로드 디자인에서 편집"
           onMouseDown={e => e.stopPropagation()}
-          onClick={() => window.open(du, '_blank')}>↗ Design</button>}
-        {flowId && !isRoot && <button title="Remove from this lane (scene is kept)"
+          onClick={() => window.open(du, '_blank')}>↗ 디자인</button>}
+        {flowId && !isRoot && <button title="이 라인에서 제거 (Scene은 유지)"
           onMouseDown={e => e.stopPropagation()}
           onClick={() => acts.removeFromLane(flowId, idx)}>✕</button>}
       </div>
@@ -116,11 +128,11 @@ export function SceneNode({ id, data }: NodeProps) {
       transform: shifted ? 'translateX(26px)' : undefined,
       transition: 'transform .13s ease'
     }}>
-      {d.isRoot && <div className="rcap">Start</div>}
+      {d.isRoot && <div className="rcap">첫 Scene</div>}
       <SceneCardBody sid={d.sid} flowId={d.flowId} idx={d.idx} tabId={d.tabId} isRoot={d.isRoot} inCanvas />
       {d.flowId && !d.isRoot && (
         <div className="gutter nodrag">
-          <button className="ins" title="Insert scene here"
+          <button className="ins" title="여기에 Scene 삽입"
             onMouseDown={e => e.stopPropagation()}
             onClick={() => acts.insertAt(d.flowId!, d.idx + 1)}>＋</button>
         </div>
@@ -154,7 +166,7 @@ export function LabelNode({ id, data }: NodeProps) {
           <InlineEdit
             value={f.label}
             className={'lbl' + (d.isRootFirst ? '' : ' grab')}
-            title={d.isRootFirst ? 'Click to rename' : 'Click to rename · drag to re-anchor'}
+            title={d.isRootFirst ? '클릭=이름 수정' : '클릭=이름 수정 · 드래그=이동/재앵커'}
             onSave={v => acts.renameFlow(d.flowId, v)}
           />
           <Handle type="target" position={Position.Left} id="l"
@@ -164,16 +176,16 @@ export function LabelNode({ id, data }: NodeProps) {
         </span>
         {/* 호버 툴바 — 절대배치라 라벨 노드 폭(=씬 시작 위치)에 영향 없음 */}
         <span className="ltools nodrag nopan">
-          <button title="Insert scene at front"
+          <button title="맨 앞에 Scene 삽입"
             onMouseDown={e => e.stopPropagation()}
             onClick={() => acts.insertAt(d.flowId, 0)}>＋</button>
-          <button title={`Delete branch “${f.label}”`}
+          <button title={`Branch '${f.label}' 삭제`}
             onMouseDown={e => e.stopPropagation()}
-            onClick={() => acts.deleteFlow(d.flowId)}>Delete</button>
+            onClick={() => acts.deleteFlow(d.flowId)}>Branch 삭제</button>
         </span>
       </div>
       {f.note
-        ? <div className="fnote nodrag" title="Edit note"
+        ? <div className="fnote nodrag" title="노트 편집"
             onMouseDown={e => e.stopPropagation()}
             onClick={() => acts.openFlowNote(d.flowId)}>{f.note}</div>
         : <span className="addnote nodrag"
@@ -246,19 +258,19 @@ export function BracketNode({ id, data }: NodeProps) {
       <div className={'bracket' + (hot ? ' hot' : '')}
         style={preview ? { left: preview.left + 7, width: preview.width - 14, right: 'auto' } : undefined}>
         <span className="blbl nodrag nopan">
-          <InlineEdit value={b.label} title="Click to rename"
+          <InlineEdit value={b.label} title="클릭=이름 수정"
             onSave={v => acts.renameBracket(d.flowId, d.bi, v)} />
-          <span className="bx" title="Delete bracket"
+          <span className="bx" title="Bracket 삭제"
             onClick={e => { e.stopPropagation(); acts.deleteBracket(d.flowId, d.bi); }}>✕</span>
         </span>
         <div className={'bnl nodrag nopan' + (b.note ? '' : ' empty')}
-          title={b.note ? 'Edit note' : 'Add note'}
+          title={b.note ? '노트 편집' : '노트 추가'}
           onClick={e => { e.stopPropagation(); acts.openBracketNote(d.flowId, d.bi); }}>
           {b.note || 'Add note'}
         </div>
-        <span className="bh left nodrag nopan" title="Drag to resize"
+        <span className="bh left nodrag nopan" title="드래그=범위 조절"
           onMouseDown={e => startResize(e, 'left')} />
-        <span className="bh right nodrag nopan" title="Drag to resize"
+        <span className="bh right nodrag nopan" title="드래그=범위 조절"
           onMouseDown={e => startResize(e, 'right')} />
       </div>
     </div>
@@ -270,7 +282,7 @@ export function SeccapNode({ data }: NodeProps) {
   const d = data as { tabId: string; title: string };
   const { setActiveTab } = useStore();
   return (
-    <div className="seccap link nodrag" title="Go to this tab"
+    <div className="seccap link nodrag" title="이 Tab으로 이동"
       onClick={() => setActiveTab(d.tabId)}>🔀 {d.title}</div>
   );
 }
@@ -281,8 +293,8 @@ export function AddStartNode({ data }: NodeProps) {
   const acts = useActions();
   return (
     <div className="scene nogutter" style={{ width: CARD_W }}>
-      <div className="rcap">Start</div>
-      <div className="thumb empty addstart nodrag" title="Set the start scene"
+      <div className="rcap">첫 Scene</div>
+      <div className="thumb empty addstart nodrag" title="첫 Scene 지정"
         onClick={() => acts.setStart(d.tabId)}>＋</div>
     </div>
   );

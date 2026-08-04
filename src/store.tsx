@@ -156,7 +156,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           hist.current.lastSnap = clean(d);
           setDoc(d); setPhase('ready');
         } catch {
-          setErrMsg('flow.json not found in the data folder — check the folder chosen at launch. (current: ' + (srv.dataDir || '?') + ')');
+          setErrMsg('데이터 폴더에 flow.json이 없어요 — 실행 시 선택한 폴더를 확인해주세요. (현재: ' + (srv.dataDir || '?') + ')');
           setPhase('loaderr');
         }
         return;
@@ -181,7 +181,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         hist.current.lastSnap = clean(d);
         setDoc(d); setPhase('ready');
       } catch {
-        setErrMsg('Could not load ' + data + 'flow.json.\n① Check the ?data=path/ parameter\n② Make sure this is served over a local server (python -m http.server)');
+        setErrMsg(data + 'flow.json 을 불러오지 못했어요.\n① ?data=경로/ 파라미터 확인\n② 로컬 서버로 열었는지 확인 (python -m http.server)');
         setPhase('loaderr');
       }
     })();

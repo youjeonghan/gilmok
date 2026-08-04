@@ -31,9 +31,9 @@ export function useActions() {
     },
     async addTheme(sid: string) {
       if (!doc) return;
-      const r = await dialogs.ask('Add theme — <em>' + titleOf(doc, sid) + '</em>', [
-        { key: 'name', label: 'Theme name', placeholder: 'e.g. dark / xmas' },
-        { key: 'path', label: 'Scene file path (relative to flow.json)', placeholder: 'scenes-dark/landing.html' }
+      const r = await dialogs.ask('테마 등록 — <em>' + titleOf(doc, sid) + '</em>', [
+        { key: 'name', label: '테마 이름', placeholder: '예: dark / xmas' },
+        { key: 'path', label: 'Scene 파일 경로 (flow.json 기준 상대 경로)', placeholder: 'scenes-dark/landing.html' }
       ]);
       if (!r || !r.name || !r.path) return null;
       commit(d => {
@@ -93,8 +93,8 @@ export function useActions() {
     /* ---- 분기 ---- */
     async addBranch(sid: string, tabId: string) {
       if (!doc) return;
-      const r = await dialogs.ask('New branch — from <em>' + titleOf(doc, sid) + '</em>', [
-        { key: 'label', label: 'Branch label', placeholder: 'e.g. Signed up / Guest' }
+      const r = await dialogs.ask('Branch 추가 — <em>' + titleOf(doc, sid) + '</em> 에서', [
+        { key: 'label', label: 'Branch 라벨', placeholder: '예: 가입 / 미가입' }
       ]);
       if (!r || !r.label) return;
       commit(d => {
@@ -112,7 +112,7 @@ export function useActions() {
       const f = doc.flows.find(x => x.id === flowId);
       if (!f) return;
       dialogs.openNote({
-        title: 'Branch “' + f.label + '”',
+        title: 'Branch 「' + f.label + '」',
         value: f.note || '',
         onSave: v => commit(d => { const df = d.flows.find(x => x.id === flowId); if (df) df.note = v; })
       });
@@ -121,7 +121,7 @@ export function useActions() {
       if (!doc) return;
       const f = doc.flows.find(x => x.id === flowId);
       if (!f) return;
-      if (!(await dialogs.askConfirm(`Delete branch “${f.label}”? (scenes are kept)`))) return;
+      if (!(await dialogs.askConfirm(`Branch 「${f.label}」를 삭제할까요? (Scene은 유지)`))) return;
       commit(d => { d.flows = d.flows.filter(x => x.id !== flowId); });
     },
     reanchorFlow(flowId: string, sid: string) {
@@ -145,7 +145,7 @@ export function useActions() {
       const b = doc.flows.find(x => x.id === flowId)?.brackets?.[bi];
       if (!b) return;
       dialogs.openNote({
-        title: 'Bracket “' + b.label + '”',
+        title: 'Bracket 「' + b.label + '」',
         value: b.note || '',
         onSave: v => commit(d => {
           const db = d.flows.find(x => x.id === flowId)?.brackets?.[bi];
@@ -166,7 +166,7 @@ export function useActions() {
       const overlapping = (f.brackets || []).map((b, bi) => ({ b, bi }))
         .filter(({ b }) => hi >= b.start && lo <= b.end);
       if (overlapping.length > 1) {
-        await dialogs.askInfo('Selection overlaps more than one bracket — select so only one is included.');
+        await dialogs.askInfo('선택 범위가 두 개 이상의 Bracket과 겹쳐요 — 하나만 겹치게 선택해주세요.');
         return;
       }
       if (overlapping.length === 1) {
@@ -177,7 +177,7 @@ export function useActions() {
         });
         return;
       }
-      const r = await dialogs.ask('New bracket', [{ key: 'label', label: 'Bracket label', placeholder: 'e.g. Onboarding' }]);
+      const r = await dialogs.ask('Bracket 만들기', [{ key: 'label', label: 'Bracket 이름', placeholder: '예: 온보딩' }]);
       if (r && r.label) {
         commit(d => {
           const df = d.flows.find(x => x.id === flowId)!;
@@ -215,12 +215,12 @@ export function useActions() {
     /* ---- 탭 ---- */
     async addTab(): Promise<string | null> {
       if (!doc) return null;
-      const r = await dialogs.ask('New tab', [
-        { key: 'title', label: 'Tab title', placeholder: 'e.g. Admin flow' }
+      const r = await dialogs.ask('새 Tab', [
+        { key: 'title', label: 'Tab 이름', placeholder: '예: 운영자 플로우' }
       ]);
       if (!r || !r.title) return null;
       if (doc.tabs.some(t => t.title === r.title)) {
-        await dialogs.askInfo('A tab with this title already exists — titles must be unique.');
+        await dialogs.askInfo('같은 이름의 Tab이 이미 있어요 — 이름은 유니크해야 해요.');
         return null;
       }
       const id = 't-' + Date.now().toString(36);
@@ -228,7 +228,7 @@ export function useActions() {
       return id;
     },
     async deleteTab(tabId: string, title: string) {
-      if (!(await dialogs.askConfirm(`Delete tab “${title}” and its branches? (scenes are kept)`))) return false;
+      if (!(await dialogs.askConfirm(`Tab 「${title}」와 그 Branch들을 삭제할까요? (Scene은 유지)`))) return false;
       commit(d => {
         d.tabs = d.tabs.filter(t => t.id !== tabId);
         d.flows = d.flows.filter(f => f.tab !== tabId);
