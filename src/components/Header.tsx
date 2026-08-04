@@ -231,7 +231,7 @@ export function Header() {
         <span className="tabdiv" />
         <button className={'tab' + (activeTab === 'scenes' ? ' on' : '')}
           title="All scenes by category (separate from flows)"
-          onClick={() => setActiveTab('scenes')}>🗂️ Gallery</button>
+          onClick={() => setActiveTab('scenes')}>🗂️ Scene Gallery</button>
       </nav>
     </header>
   );
