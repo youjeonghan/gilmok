@@ -29,6 +29,8 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
 .brand .appname{display:flex;align-items:center;gap:6px;color:var(--ink)}
 .brand .brsep{color:var(--text-dim);font-weight:400;margin:0 2px}
 .brand .svc-icon{font-size:19px;line-height:1;display:flex;align-items:center}
+.brand .svc-icon.click{cursor:pointer;border-radius:6px}
+.brand .svc-icon.click:hover{outline:2px solid var(--jade);outline-offset:2px}
 .brand .svc-icon img{width:22px;height:22px;border-radius:6px;object-fit:cover;display:block}
 .brand .ver{font-size:11px;font-weight:600;color:var(--text-dim)}
 .info{position:relative;display:inline-flex;margin-left:4px}
@@ -47,6 +49,7 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
   border:1px solid var(--border);background:var(--surface);color:var(--text-sub);cursor:pointer}
 .tools button:hover{border-color:var(--jade);color:var(--jade)}
 .tools button:disabled{opacity:.55;cursor:default}
+.tools .iconbtn{display:flex;align-items:center;padding:7px 9px}
 #tabs{display:flex;gap:2px;width:100%;padding-top:8px}
 #tabs .tab{font:inherit;font-size:13.5px;font-weight:700;padding:8px 16px;border:none;background:transparent;
   color:var(--mist);cursor:pointer;border-bottom:2.5px solid transparent}

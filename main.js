@@ -289,6 +289,12 @@ function startServer() {
           fs.writeFileSync(path.join(dataDir, 'flow.json'), body);
           return sendJSON(res, { ok: true });
         }
+        if (u.startsWith('/api/open-folder')) {
+          if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
+          if (!dataDir) return sendJSON(res, { ok: false, error: 'no project' });
+          shell.openPath(dataDir);
+          return sendJSON(res, { ok: true });
+        }
         if (u.startsWith('/api/install-skill')) {
           if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
           if (!dataDir) return sendJSON(res, { ok: false, error: 'no project' });

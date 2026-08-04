@@ -3,7 +3,19 @@ import React, { useEffect, useState } from 'react';
 import { useStore } from '../store';
 import { useActions } from '../actions';
 import { useDialogs } from '../dialogs';
-import { pickFolder, installSkill, updateCheck, updateDownload } from '../api';
+import { pickFolder, installSkill, updateCheck, updateDownload, openFolder } from '../api';
+
+/** 우측 패널 토글 아이콘 (□| 레이아웃) */
+function PanelIcon({ open }: { open: boolean }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="2.5" fill="none"
+        stroke="currentColor" strokeWidth="1.5" />
+      <line x1="9.75" y1="2.5" x2="9.75" y2="13.5" stroke="currentColor" strokeWidth="1.5" />
+      {open && <rect x="10.5" y="3.25" width="3.25" height="9.5" rx="1" fill="currentColor" opacity=".55" />}
+    </svg>
+  );
+}
 
 const VER = '7.1';
 const APP_NAME = '길목'; // 저장소·실행파일명은 flow-map 유지, 표시 이름만 길목
@@ -118,7 +130,9 @@ export function Header() {
           {APP_NAME} <span className="ver">v{server?.version || VER}</span>
         </span>
         <span className="brsep">—</span>
-        <span className="svc-icon">
+        <span className={'svc-icon' + (isServer ? ' click' : '')}
+          title={isServer ? '데이터 폴더 열기' : undefined}
+          onClick={() => { if (isServer) openFolder(); }}>
           {icon && (iconIsImg
             ? <img src={/^(https?:|data:)/.test(icon) ? icon : DATA + icon} alt="" />
             : icon)}
@@ -160,11 +174,6 @@ export function Header() {
         </span>
       </div>
       <div className="tools">
-        {server?.canTerm && (
-          <button className={ui.termOpen ? 'on' : ''}
-            title="Claude Code 터미널 — 데이터 폴더에서 실행 (구독 로그인 그대로 사용)"
-            onClick={() => setUI({ termOpen: !ui.termOpen })}>⌨ 터미널</button>
-        )}
         {server?.canPick && (
           <button title="다른 프로젝트 폴더 열기" onClick={async () => {
             const r = await pickFolder();
@@ -186,6 +195,13 @@ export function Header() {
         )}
         <button onClick={() => dialogs.openExport(cleanDoc())}>내보내기</button>
         <button title="서비스 이름·아이콘" onClick={openSettings}>⚙ 설정</button>
+        {server?.canTerm && (
+          <button className={'iconbtn' + (ui.termOpen ? ' on' : '')}
+            title="Claude Code 터미널 열기/닫기 — 데이터 폴더에서 실행 (구독 로그인 그대로 사용)"
+            onClick={() => setUI({ termOpen: !ui.termOpen })}>
+            <PanelIcon open={!!ui.termOpen} />
+          </button>
+        )}
         {!isServer && (
           <button onClick={async () => {
             if (await dialogs.askConfirm('편집 내용을 버리고 flow.json 파일 상태로 되돌릴까요?')) resetToFile();

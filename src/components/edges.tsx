@@ -5,13 +5,14 @@ import { ARROW_H, CORNER_R } from '../layout';
 
 const STROKE = '#C9432C';
 
-/** 루트 카드 → 첫 분기 라벨: 수평 직선 + 화살촉 */
+/** 루트 카드 → 첫 분기 라벨: 수평 직선 + 화살촉 (카드에서 여백을 두고 시작) */
 export function HArrowEdge({ sourceX, targetX, targetY }: EdgeProps) {
   const y = targetY;
-  const endX = targetX - ARROW_H;
+  const startX = sourceX + 16;
+  const endX = Math.max(startX + 6, targetX - ARROW_H);
   return (
     <>
-      <path d={`M ${sourceX} ${y} L ${endX} ${y}`}
+      <path d={`M ${startX} ${y} L ${endX} ${y}`}
         fill="none" stroke={STROKE} strokeWidth={3} strokeLinecap="round" />
       <path d={`M ${endX} ${y - 5.5} L ${targetX} ${y} L ${endX} ${y + 5.5} Z`} fill={STROKE} />
     </>

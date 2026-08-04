@@ -23,6 +23,9 @@ export const pickFolder = async (): Promise<{ ok: boolean; dataDir?: string }> =
 export const installSkill = async (): Promise<{ ok: boolean; path?: string; error?: string }> =>
   (await fetch('api/install-skill', { method: 'POST' })).json();
 
+export const openFolder = async (): Promise<{ ok: boolean }> =>
+  (await fetch('api/open-folder', { method: 'POST' })).json();
+
 export const updateCheck = async (): Promise<{
   ok: boolean; current?: string; latest?: string; hasUpdate?: boolean; error?: string;
 }> => (await fetch('api/update-check', { method: 'POST' })).json();
