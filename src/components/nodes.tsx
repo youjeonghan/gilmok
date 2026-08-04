@@ -162,12 +162,15 @@ export function LabelNode({ id, data }: NodeProps) {
           <Handle type="source" position={Position.Bottom} id="b"
             style={{ ...HIDDEN_HANDLE, left: '50%', bottom: 0 }} />
         </span>
-        <button className="ins nodrag" title="맨 앞에 씬 삽입"
-          onMouseDown={e => e.stopPropagation()}
-          onClick={() => acts.insertAt(d.flowId, 0)}>＋</button>
-        <button className="ldel nodrag" title={`'${f.label}' 분기 라인 삭제`}
-          onMouseDown={e => e.stopPropagation()}
-          onClick={() => acts.deleteFlow(d.flowId)}>분기 삭제</button>
+        {/* 호버 툴바 — 절대배치라 라벨 노드 폭(=씬 시작 위치)에 영향 없음 */}
+        <span className="ltools nodrag nopan">
+          <button title="맨 앞에 씬 삽입"
+            onMouseDown={e => e.stopPropagation()}
+            onClick={() => acts.insertAt(d.flowId, 0)}>＋</button>
+          <button title={`'${f.label}' 분기 라인 삭제`}
+            onMouseDown={e => e.stopPropagation()}
+            onClick={() => acts.deleteFlow(d.flowId)}>분기 삭제</button>
+        </span>
       </div>
       {f.note
         ? <div className="fnote nodrag" title="클릭해서 노트 편집"
@@ -242,20 +245,20 @@ export function BracketNode({ id, data }: NodeProps) {
     <div className="bracketnode">
       <div className={'bracket' + (hot ? ' hot' : '')}
         style={preview ? { left: preview.left + 7, width: preview.width - 14, right: 'auto' } : undefined}>
-        <span className="blbl nodrag">
+        <span className="blbl nodrag nopan">
           <InlineEdit value={b.label} title="클릭해서 범주 이름 수정"
             onSave={v => acts.renameBracket(d.flowId, d.bi, v)} />
           <span className="bx" title="범주 삭제"
             onClick={e => { e.stopPropagation(); acts.deleteBracket(d.flowId, d.bi); }}>✕</span>
         </span>
-        <div className={'bnl nodrag' + (b.note ? '' : ' empty')}
+        <div className={'bnl nodrag nopan' + (b.note ? '' : ' empty')}
           title={b.note ? '클릭해서 노트 편집' : '범주 노트 추가'}
           onClick={e => { e.stopPropagation(); acts.openBracketNote(d.flowId, d.bi); }}>
           {b.note || 'Add note'}
         </div>
-        <span className="bh left nodrag" title="드래그해서 범주 범위 조절"
+        <span className="bh left nodrag nopan" title="드래그해서 범주 범위 조절"
           onMouseDown={e => startResize(e, 'left')} />
-        <span className="bh right nodrag" title="드래그해서 범주 범위 조절"
+        <span className="bh right nodrag nopan" title="드래그해서 범주 범위 조절"
           onMouseDown={e => startResize(e, 'right')} />
       </div>
     </div>

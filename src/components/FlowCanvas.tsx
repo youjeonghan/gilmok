@@ -363,6 +363,8 @@ function CanvasInner({ view }: { view: string }) {
         minZoom={0.12}
         maxZoom={2}
         panOnScroll
+        panOnDrag={false}
+        panActivationKeyCode="Space"
         zoomOnScroll={false}
         zoomActivationKeyCode={['Meta', 'Control']}
         selectionKeyCode="Shift"

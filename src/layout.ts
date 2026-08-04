@@ -18,7 +18,7 @@ export const DROP_PAD = 8;          // 앵커 아래 여백
 export const LBL_ARM = TRUNK_LEN + ARROW_H + 8;  // 트렁크 X → 라벨 왼쪽 거리
 export const GROUP_GAP = 26;        // 레인 → 자식 그룹 간격
 export const BLOCK_GAP = 30;        // 형제 블록 간격
-export const LANE_AFTER_LABEL = 10; // 라벨 노드 → 첫 씬 간격
+export const LANE_AFTER_LABEL = 24; // 라벨 노드 → 첫 씬 간격 (왼쪽 화살표 여백과 균형)
 export const ROOT_TO_LABEL = 82;    // 루트 카드 오른쪽 → 첫 라벨 (화살표 44+9 포함)
 export const RCAP_H = 22;           // '첫 씬' 캡션 높이
 export const SEC_GAP = 70;          // 전체 탭 섹션 간격
@@ -102,7 +102,7 @@ export function computeLayout(
     const ld = labelDim(lblId);
     const labelY = sceneY + THUMB_H / 2 - PILL_CENTER_Y;
     nodes.push({
-      id: lblId, type: 'label', x: labelX, y: labelY,
+      id: lblId, type: 'label', x: labelX, y: labelY, z: 3, // 호버 툴바가 씬 위로 뜨도록
       draggable: !isRootFirst, selectable: false,
       data: { flowId: f.id, tabId: tab.id, isRootFirst }
     });
