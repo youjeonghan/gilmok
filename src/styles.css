@@ -219,6 +219,8 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
 #ghost .gs.join{color:var(--jade)}
 .dropbar{position:absolute;width:3px;border-radius:2px;background:var(--primary-600);
   pointer-events:none;z-index:6}
+/* 자유 배치 중 겹침(이동 불가) 표시 */
+.react-flow__node.mvbad{outline:2px solid #C9432C;outline-offset:3px;border-radius:10px;opacity:.85}
 
 /* ===== 컨텍스트 메뉴 ===== */
 #ctx{position:fixed;z-index:100;background:var(--surface);border:1px solid var(--border);

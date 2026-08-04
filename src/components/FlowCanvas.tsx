@@ -51,9 +51,18 @@ interface SceneDrag {
 interface LabelDrag {
   kind: 'label';
   flowId: string;
+  tabId: string;
   ghost: Ghost;
   targets: { nodeId: string; sid: string; x: number; y: number; w: number; h: number }[];
   hit: { nodeId: string; sid: string } | null;
+  /* 자유 배치 (블록 통째 이동) */
+  origin: { x: number; y: number };
+  subtree: Set<string>;
+  basePos: Map<string, { x: number; y: number }>;
+  statics: { x: number; y: number; w: number; h: number }[];
+  delta: { dx: number; dy: number };
+  moved: boolean;
+  invalid: boolean;
 }
 
 function CanvasInner({ view }: { view: string }) {
@@ -90,7 +99,7 @@ function CanvasInner({ view }: { view: string }) {
 
   /* ---- 레이아웃 ---- */
   const layout = useMemo(() => {
-    if (!doc) return { nodes: [], edges: [], lanes: [], height: 0, width: 0 };
+    if (!doc) return { nodes: [], edges: [], lanes: [], blocks: {}, height: 0, width: 0 };
     return computeLayout(
       doc, view,
       id => sizesRef.current.get(id) || null,
@@ -163,7 +172,7 @@ function CanvasInner({ view }: { view: string }) {
   const resetPositions = useCallback(() => {
     setRfNodes(prev => prev.map(n => {
       const p = layoutPos.get(n.id);
-      return p ? { ...n, position: { x: p.x, y: p.y } } : n;
+      return { ...n, className: undefined, position: p ? { x: p.x, y: p.y } : n.position };
     }));
   }, [layoutPos]);
 
@@ -190,15 +199,31 @@ function CanvasInner({ view }: { view: string }) {
       if (d.isRootFirst) return;
       const f = doc.flows.find(x => x.id === d.flowId);
       if (!f) return;
+      const block = layout.blocks[d.flowId];
+      const subtree = new Set(block?.nodeIds ?? []);
+      // 재앵커 대상: 같은 탭의 씬 중, 이 블록(자기 서브트리)에 속하지 않는 것
+      const subtreeSids = new Set<string>();
+      (block?.flowIds ?? [d.flowId]).forEach(fid => {
+        doc.flows.find(x => x.id === fid)?.seq.forEach(s => subtreeSids.add(s));
+      });
       const targets = layout.nodes
-        .filter(n => n.type === 'scene' && (n.data as any).tabId === f.tab && !f.seq.includes((n.data as any).sid))
+        .filter(n => n.type === 'scene' && (n.data as any).tabId === f.tab && !subtreeSids.has((n.data as any).sid))
         .map(n => ({
           nodeId: n.id, sid: (n.data as any).sid, x: n.x, y: n.y,
           w: CARD_W, h: sizesRef.current.get(n.id)?.h ?? 196
         }));
+      const estH = (n: LNode) => sizesRef.current.get(n.id)?.h ?? (n.h ?? (n.type === 'scene' ? 196 : 30));
+      const estW = (n: LNode) => sizesRef.current.get(n.id)?.w ?? (n.w ?? (n.type === 'scene' ? CARD_W : 92));
+      const basePos = new Map<string, { x: number; y: number }>();
+      layout.nodes.forEach(n => { if (subtree.has(n.id)) basePos.set(n.id, { x: n.x, y: n.y }); });
+      const statics = layout.nodes
+        .filter(n => !subtree.has(n.id) && (n.type === 'scene' || n.type === 'label' || n.type === 'bracket'))
+        .map(n => ({ x: n.x, y: n.y, w: estW(n), h: estH(n) }));
       dragRef.current = {
-        kind: 'label', flowId: d.flowId,
-        ghost: makeGhost('Branch 「' + f.label + '」 이동'), targets, hit: null
+        kind: 'label', flowId: d.flowId, tabId: d.tabId,
+        ghost: makeGhost('Branch 「' + f.label + '」 이동'), targets, hit: null,
+        origin: { ...node.position }, subtree, basePos, statics,
+        delta: { dx: 0, dy: 0 }, moved: false, invalid: false
       };
       document.body.classList.add('noselect');
     }
@@ -211,13 +236,45 @@ function CanvasInner({ view }: { view: string }) {
     const p = screenToFlowPosition({ x: e.clientX, y: e.clientY });
 
     if (drag.kind === 'label') {
+      // 재앵커 대상 히트 (Scene 위)
       let hit: LabelDrag['hit'] = null;
       for (const t of drag.targets) {
         if (p.x >= t.x && p.x <= t.x + t.w && p.y >= t.y && p.y <= t.y + t.h) { hit = t; break; }
       }
       drag.hit = hit;
       setCui(c => (c.anchorTarget === (hit?.nodeId ?? null) ? c : { ...c, anchorTarget: hit?.nodeId ?? null }));
-      drag.ghost.status(hit ? `「${titleOf(doc, hit.sid)}」에서 Branch` : '빈 곳에 놓으면 위치 이동 · Scene 위는 재앵커', !!hit);
+      // 자유 배치 — 라벨의 현재 위치에서 델타 계산, 블록 전체를 함께 이동
+      const dx = node.position.x - drag.origin.x;
+      const dy = node.position.y - drag.origin.y;
+      drag.delta = { dx, dy };
+      drag.moved = drag.moved || Math.hypot(dx, dy) > 3;
+      // 충돌: 이동한 블록의 각 노드 영역이 블록 밖 노드와 겹치면 invalid
+      const M = 6;
+      let invalid = false;
+      if (drag.moved && !hit) {
+        outer: for (const [id, bp] of drag.basePos) {
+          const s = sizesRef.current.get(id);
+          const w = s?.w ?? CARD_W, h = s?.h ?? 60;
+          const x1 = bp.x + dx, y1 = bp.y + dy;
+          for (const r of drag.statics) {
+            if (x1 < r.x + r.w + M && x1 + w + M > r.x && y1 < r.y + r.h + M && y1 + h + M > r.y) {
+              invalid = true; break outer;
+            }
+          }
+        }
+      }
+      drag.invalid = invalid;
+      setRfNodes(prev => prev.map(n => {
+        if (!drag.subtree.has(n.id)) return n.className ? { ...n, className: undefined } : n;
+        const bp = drag.basePos.get(n.id)!;
+        const pos = n.id === node.id ? n.position : { x: bp.x + dx, y: bp.y + dy };
+        return { ...n, position: pos, className: invalid ? 'mvbad' : undefined };
+      }));
+      drag.ghost.status(
+        hit ? `「${titleOf(doc, hit.sid)}」에서 Branch (재앵커)`
+          : invalid ? '다른 Branch와 겹쳐요 — 놓으면 원위치'
+            : '이동 (놓아서 배치)',
+        !!hit || (!invalid && drag.moved));
       return;
     }
 
@@ -291,9 +348,12 @@ function CanvasInner({ view }: { view: string }) {
     if (drag.kind === 'label') {
       const f = doc?.flows.find(x => x.id === drag.flowId);
       if (drag.hit && f && drag.hit.sid !== f.from) {
-        acts.reanchorFlow(drag.flowId, drag.hit.sid);
+        acts.reanchorFlow(drag.flowId, drag.hit.sid);       // Scene 위에 놓음 = 재앵커
+      } else if (drag.moved && !drag.invalid && !drag.hit
+        && (Math.abs(drag.delta.dx) > 2 || Math.abs(drag.delta.dy) > 2)) {
+        acts.moveBranch(drag.flowId, drag.tabId, drag.delta.dx, drag.delta.dy); // 자유 배치 커밋
       }
-      resetPositions();
+      resetPositions(); // 겹침(invalid)이거나 취소면 원위치, 커밋이면 레이아웃이 재계산
       return;
     }
     if (drag.cur && drag.slot != null) {

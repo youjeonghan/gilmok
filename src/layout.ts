@@ -58,10 +58,19 @@ export interface LaneRow {
   right: number;        // 히트 영역 오른끝
 }
 
+/** Branch 블록(레인+자손 전체)의 지오메트리 — 자유 배치 드래그·충돌 판정용 */
+export interface BlockInfo {
+  flowId: string;
+  tabId: string;
+  nodeIds: string[];        // 블록에 속한 모든 노드 (자손 포함)
+  flowIds: string[];        // 블록에 속한 플로우 id들 (자신 포함)
+}
+
 export interface LayoutResult {
   nodes: LNode[];
   edges: LEdge[];
   lanes: LaneRow[];
+  blocks: Record<string, BlockInfo>;
   height: number;
   width: number;
 }
@@ -85,6 +94,12 @@ export function computeLayout(
   const nodes: LNode[] = [];
   const edges: LEdge[] = [];
   const lanes: LaneRow[] = [];
+  const blocks: Record<string, BlockInfo> = {};
+  const blockStack: BlockInfo[] = [];
+  const addNode = (n: LNode) => {
+    nodes.push(n);
+    for (const b of blockStack) b.nodeIds.push(n.id);
+  };
   let maxX = 0;
 
   const sceneH = (nodeId: string) => size(nodeId)?.h ?? DEFAULT_SCENE_H;
@@ -93,15 +108,25 @@ export function computeLayout(
     return { w: s?.w ?? DEFAULT_LABEL_W, h: s?.h ?? DEFAULT_LABEL_H };
   };
 
-  /** 한 플로우 블록(레인 + 그 아래 자식 그룹들) 배치. 반환: 블록 전체 높이 */
-  function layoutBlock(f: FlowLane, tab: Tab, labelX: number, yTop: number,
+  /** 한 플로우 블록(레인 + 그 아래 자식 그룹들) 배치. 반환: 블록 전체 높이(오프셋 포함 —
+   *  이후 형제 블록들이 함께 밀린다). */
+  function layoutBlock(f: FlowLane, tab: Tab, baseLabelX: number, baseYTop: number,
     ancestors: Set<string>, isRootFirst: boolean): number {
+    // 자유 배치 오프셋 — 자동 좌표에 더해진다
+    const off = (!isRootFirst && doc.layout?.[tab.id]?.offsets?.[f.id]) || { dx: 0, dy: 0 };
+    const labelX = baseLabelX + off.dx;
+    const yTop = baseYTop + off.dy;
+    const binfo: BlockInfo = { flowId: f.id, tabId: tab.id, nodeIds: [], flowIds: [f.id] };
+    blocks[f.id] = binfo;
+    for (const b of blockStack) b.flowIds.push(f.id);
+    blockStack.push(binfo);
+
     const brPad = (f.brackets || []).length ? BRACKET_PAD : 0;
     const sceneY = yTop + brPad;
     const lblId = `lbl:${f.id}`;
     const ld = labelDim(lblId);
     const labelY = sceneY + THUMB_H / 2 - PILL_CENTER_Y;
-    nodes.push({
+    addNode({
       id: lblId, type: 'label', x: labelX, y: labelY, z: 3, // 호버 툴바가 씬 위로 뜨도록
       draggable: !isRootFirst, selectable: false,
       data: { flowId: f.id, tabId: tab.id, isRootFirst }
@@ -114,7 +139,7 @@ export function computeLayout(
       const x = scenesX0 + i * PITCH;
       sceneXs.push(x);
       laneH = Math.max(laneH, sceneH(nid));
-      nodes.push({
+      addNode({
         id: nid, type: 'scene', x, y: sceneY,
         draggable: true, selectable: true,
         data: { sid, flowId: f.id, idx: i, tabId: tab.id }
@@ -132,7 +157,7 @@ export function computeLayout(
       const s = Math.max(0, Math.min(b.start, f.seq.length - 1));
       const e = Math.max(s, Math.min(b.end, f.seq.length - 1));
       const left = sceneXs[s], right = sceneXs[e] + CARD_W;
-      nodes.push({
+      addNode({
         id: `br:${f.id}:${bi}`, type: 'bracket',
         x: left - 7, y: sceneY - 58, w: right - left + 14, h: 44, z: 5,
         draggable: false, selectable: false,
@@ -140,21 +165,28 @@ export function computeLayout(
       });
     });
     const laneBottom = sceneY + laneH;
-    // 자식 분기 그룹 — 레인의 각 씬에서 갈라지는 플로우들
+    // 자식 분기 그룹 — 오른쪽 부모의 그룹을 먼저(위에) 배치해
+    // 왼쪽 부모의 트렁크가 앞 블록 카드를 가로지르지 않게 한다 (겹침 해소)
     let childY = laneBottom + GROUP_GAP;
     let grew = false;
+    const groups: { i: number; subs: FlowLane[] }[] = [];
     f.seq.forEach((sid, i) => {
       if (ancestors.has(sid)) return;
       const subs = flowsFrom(doc, sid, tab.id);
-      if (!subs.length) return;
+      if (subs.length) groups.push({ i, subs });
+    });
+    groups.sort((a, b) => sceneXs[b.i] - sceneXs[a.i]);
+    for (const { i, subs } of groups) {
+      const sid = f.seq[i];
       const parentNid = sceneNodeIdFor(f, i);
       const anchorX = sceneXs[i] + CARD_CENTER;
       const parentBottom = sceneY + sceneH(parentNid);
       let prevArmY: number | null = null;
-      subs.forEach(cf => {
+      for (const cf of subs) {
         const cLabelX = anchorX + LBL_ARM;
+        const cOff = (doc.layout?.[tab.id]?.offsets?.[cf.id]) || { dx: 0, dy: 0 };
         const cBrPad = (cf.brackets || []).length ? BRACKET_PAD : 0;
-        const armY = childY + cBrPad + THUMB_H / 2; // 자식 라벨 알약 중심 y
+        const armY = childY + cOff.dy + cBrPad + THUMB_H / 2; // 자식 라벨 알약 중심 y (오프셋 반영)
         edges.push({
           id: `et:${cf.id}`, type: 'trunk',
           source: parentNid, sourceHandle: 'b',
@@ -165,10 +197,11 @@ export function computeLayout(
         const h = layoutBlock(cf, tab, cLabelX, childY, new Set([...ancestors, sid]), false);
         childY += h + BLOCK_GAP;
         grew = true;
-      });
-    });
+      }
+    }
+    blockStack.pop();
     const bottom = grew ? childY - BLOCK_GAP : laneBottom;
-    return bottom - yTop;
+    return bottom - baseYTop;
   }
 
   /** 탭 하나 배치. 반환: 섹션 높이 */
@@ -214,8 +247,9 @@ export function computeLayout(
         let prevArmY: number | null = null;
         fs.slice(1).forEach(cf => {
           const cLabelX = anchorX + LBL_ARM;
+          const cOff = (doc.layout?.[tab.id]?.offsets?.[cf.id]) || { dx: 0, dy: 0 };
           const cBrPad = (cf.brackets || []).length ? BRACKET_PAD : 0;
-          const armY = childY + cBrPad + THUMB_H / 2;
+          const armY = childY + cOff.dy + cBrPad + THUMB_H / 2;
           edges.push({
             id: `et:${cf.id}`, type: 'trunk',
             source: firstLblId, sourceHandle: 'b',
@@ -242,12 +276,12 @@ export function computeLayout(
       const h = layoutTab(t, 0, y + CAP_H);
       y += CAP_H + h + SEC_GAP;
     });
-    return { nodes, edges, lanes, height: y, width: maxX };
+    return { nodes, edges, lanes, blocks, height: y, width: maxX };
   }
   const tab = doc.tabs.find(t => t.id === view);
   if (tab) {
     const h = layoutTab(tab, 0, 0);
-    return { nodes, edges, lanes, height: h, width: maxX };
+    return { nodes, edges, lanes, blocks, height: h, width: maxX };
   }
-  return { nodes, edges, lanes, height: 0, width: 0 };
+  return { nodes, edges, lanes, blocks, height: 0, width: 0 };
 }

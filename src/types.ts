@@ -38,10 +38,10 @@ export interface FlowLane {
   brackets: Bracket[];
 }
 
-/** 자유 배치(v7.x) — 탭별 좌표 오버라이드. 의미 구조와 분리된 프레젠테이션 데이터 */
+/** 자유 배치 — Branch(플로우)별 오프셋. 자동 배치 좌표에 더해지며,
+ *  해당 블록 '뒤'(레이아웃 순서상 이후)의 블록들도 함께 밀린다. 의미 구조와 분리. */
 export interface TabLayout {
-  mode: 'auto' | 'free';
-  pos: Record<string, { x: number; y: number }>; // key = 노드 인스턴스 id
+  offsets: Record<string, { dx: number; dy: number }>; // key = flow id
 }
 
 export interface FlowDoc {
