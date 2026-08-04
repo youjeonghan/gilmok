@@ -94,8 +94,8 @@ function AskDialog({ st, close }: { st: AskState | null; close: () => void }) {
           );
         })}
         <div className="row">
-          {st.mode !== 'info' && <button onClick={cancel}>취소</button>}
-          <button className="pri" onClick={ok}>확인</button>
+          {st.mode !== 'info' && <button onClick={cancel}>Cancel</button>}
+          <button className="pri" onClick={ok}>OK</button>
         </div>
       </div>
     </dialog>
@@ -114,13 +114,13 @@ function NoteDialog({ st, close }: { st: NoteCtx | null; close: () => void }) {
   return (
     <dialog ref={ref} onCancel={close}>
       <div className="dlg">
-        <h2>노트 — {st.title}</h2>
-        <textarea id="noteTxt" value={txt} placeholder="메모 — 의도, 미결 사항, AI에게 남길 컨텍스트 등"
+        <h2>Note — {st.title}</h2>
+        <textarea id="noteTxt" value={txt} placeholder="Intent, open questions, context for AI…"
           onChange={e => setTxt(e.target.value)} autoFocus />
         <div className="row">
-          <button className="grow" onClick={() => { st.onSave(''); close(); }}>노트 삭제</button>
-          <button onClick={close}>취소</button>
-          <button className="pri" onClick={() => { st.onSave(txt.trim()); close(); }}>저장</button>
+          <button className="grow" onClick={() => { st.onSave(''); close(); }}>Delete</button>
+          <button onClick={close}>Cancel</button>
+          <button className="pri" onClick={() => { st.onSave(txt.trim()); close(); }}>Save</button>
         </div>
       </div>
     </dialog>
@@ -154,18 +154,18 @@ function PickDialog({ st, close }: { st: PickState | null; close: () => void }) 
   const done = (v: PickResult | null) => { st.resolve(v); close(); };
   const ok = () => done({ pick: picked, title: title.trim(), includeIdx: posIdx >= 0 ? st.boundary[posIdx].bracketIdx : -1 });
   const rows: { val: string; label: string; file: string | null; tag?: string }[] = [
-    { val: '__new__', label: '✦ 빈 씬 (새로 만들기)', file: null },
+    { val: '__new__', label: '✦ New scene', file: null },
     ...Object.keys(doc.scenes).map(id => ({
       val: id, label: titleOf(doc, id), file: doc.scenes[id].file,
-      tag: doc.scenes[id].file ? undefined : '미제작'
+      tag: doc.scenes[id].file ? undefined : 'not built'
     }))
   ];
   return (
     <dialog ref={ref} id="pickDlg" className={big ? 'big' : ''} onCancel={e => { e.preventDefault(); done(null); }}>
       <div className="dlg">
-        <h2 style={{ display: 'flex', alignItems: 'center' }}>씬 삽입
+        <h2 style={{ display: 'flex', alignItems: 'center' }}>Insert scene
           <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 4 }}>
-            {([['작게', false], ['크게', true]] as const).map(([lb, b]) => (
+            {([['S', false], ['L', true]] as const).map(([lb, b]) => (
               <span key={lb} className={'tchip' + (big === b ? ' on' : '')}
                 onClick={() => setUI({ pickBig: b })}>{lb}</span>
             ))}
@@ -186,25 +186,25 @@ function PickDialog({ st, close }: { st: PickState | null; close: () => void }) 
           ))}
         </div>
         {picked === '__new__' && (
-          <div><label>새 씬 제목</label>
-            <input value={title} placeholder="예: 결제 확인" autoFocus
+          <div><label>New scene title</label>
+            <input value={title} placeholder="e.g. Checkout" autoFocus
               onChange={e => setTitle(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') ok(); }} />
           </div>
         )}
         {st.boundary.length > 0 && (
-          <div><label>위치</label>
+          <div><label>Position</label>
             <select value={String(posIdx)} onChange={e => setPosIdx(parseInt(e.target.value, 10))}>
-              <option value="-1">독립 (범주 밖)</option>
+              <option value="-1">Outside brackets</option>
               {st.boundary.map((b, i) => (
-                <option key={i} value={String(i)}>범주 「{b.label}」에 포함</option>
+                <option key={i} value={String(i)}>Into “{b.label}”</option>
               ))}
             </select>
           </div>
         )}
         <div className="row">
-          <button onClick={() => done(null)}>취소</button>
-          <button className="pri" onClick={ok}>확인</button>
+          <button onClick={() => done(null)}>Cancel</button>
+          <button className="pri" onClick={ok}>OK</button>
         </div>
       </div>
     </dialog>
@@ -222,14 +222,14 @@ function ExportDialog({ text, close }: { text: string | null; close: () => void 
   return (
     <dialog ref={ref} id="exportDlg" onCancel={close}>
       <div className="dlg">
-        <h2>flow.json 내보내기 — 아래 내용을 flow.json에 붙여넣기</h2>
+        <h2>Export — paste into flow.json</h2>
         <textarea id="exportTxt" ref={ta} readOnly value={text || ''} spellCheck={false} />
         <div className="row">
           <button onClick={() => {
             ta.current?.select();
             navigator.clipboard?.writeText(text || '').catch(() => document.execCommand('copy'));
-          }}>복사</button>
-          <button onClick={close}>닫기</button>
+          }}>Copy</button>
+          <button onClick={close}>Close</button>
         </div>
       </div>
     </dialog>
@@ -245,8 +245,8 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
 
   const api: DialogAPI = {
     ask: (title, fields) => new Promise(res => setAskSt({ title, fields, mode: 'form', resolve: res })),
-    askInfo: msg => new Promise(res => setAskSt({ title: '안내', fields: [], mode: 'info', msg, resolve: res })),
-    askConfirm: msg => new Promise(res => setAskSt({ title: '확인', fields: [], mode: 'confirm', msg, resolve: res })),
+    askInfo: msg => new Promise(res => setAskSt({ title: 'Notice', fields: [], mode: 'info', msg, resolve: res })),
+    askConfirm: msg => new Promise(res => setAskSt({ title: 'Confirm', fields: [], mode: 'confirm', msg, resolve: res })),
     openNote: ctx => setNoteSt(ctx),
     pickScene: boundary => new Promise(res => setPickSt({ boundary, resolve: res })),
     openExport: text => setExportTxt(text)

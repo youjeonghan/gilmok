@@ -8,7 +8,7 @@ export function GalleryView() {
   if (!doc) return null;
   const groups: Record<string, string[]> = {};
   Object.keys(doc.scenes).forEach(id => {
-    const g = doc.scenes[id].group || '기타';
+    const g = doc.scenes[id].group || 'Other';
     (groups[g] = groups[g] || []).push(id);
   });
   return (

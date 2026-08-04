@@ -58,11 +58,11 @@ function termSpawn(cols, rows) {
   });
 }
 function attachTermWS(ws) {
-  if (!ptyMod) { ws.send(JSON.stringify({ t: 'err', msg: '이 빌드에서는 터미널을 사용할 수 없어요 (pty 모듈 로드 실패)' })); ws.close(); return; }
+  if (!ptyMod) { ws.send(JSON.stringify({ t: 'err', msg: 'Terminal unavailable in this build (pty failed to load)' })); ws.close(); return; }
   if (term && term.ws && term.ws !== ws) { try { term.ws.close(); } catch (e) {} }
   if (!term || !term.p) {
     try { termSpawn(); } catch (e) {
-      ws.send(JSON.stringify({ t: 'err', msg: 'claude 실행 실패: ' + e.message }));
+      ws.send(JSON.stringify({ t: 'err', msg: 'Failed to launch claude: ' + e.message }));
       return;
     }
   }
@@ -82,7 +82,7 @@ function attachTermWS(ws) {
         termSpawn(m.cols, m.rows);
         term.ws = ws;
         ws.send(JSON.stringify({ t: 'restarted' }));
-      } catch (e) { ws.send(JSON.stringify({ t: 'err', msg: 'claude 실행 실패: ' + e.message })); }
+      } catch (e) { ws.send(JSON.stringify({ t: 'err', msg: 'Failed to launch claude: ' + e.message })); }
     }
   });
   ws.on('close', () => { if (term && term.ws === ws) term.ws = null; });
@@ -202,7 +202,7 @@ async function latestRelease() {
   const res = await ghRequest(`https://api.github.com/repos/${REPO}/releases/latest`, token);
   if (res.statusCode !== 200) {
     let hint = 'HTTP ' + res.statusCode;
-    if (res.statusCode === 404) hint += ' — private 저장소는 GitHub 토큰이 필요해요 (gh CLI 로그인 또는 설정)';
+    if (res.statusCode === 404) hint += ' — private releases need a GitHub token (gh CLI login or config)';
     res.resume();
     throw new Error(hint);
   }
@@ -269,7 +269,7 @@ function startServer() {
         if (u.startsWith('/api/pick-folder')) {
           if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
           const r = await dialog.showOpenDialog(win, {
-            title: 'flow.json이 있는 데이터 폴더 선택',
+            title: 'Select a data folder containing flow.json',
             properties: ['openDirectory']
           });
           if (r.canceled || !r.filePaths.length) return sendJSON(res, { ok: false });

@@ -31,17 +31,17 @@ export function App() {
   }, [setUI]);
 
   if (phase === 'loading') {
-    return <div className="screenmsg">불러오는 중…</div>;
+    return <div className="screenmsg">Loading…</div>;
   }
   if (phase === 'needProject') {
     return (
       <div className="screenmsg">
-        <div className="t">열 프로젝트가 없어요</div>
-        flow.json이 있는 데이터 폴더를 선택해주세요.<br /><br />
+        <div className="t">No project open</div>
+        Choose a data folder that contains flow.json.<br /><br />
         <button onClick={async () => {
           const r = await pickFolder();
           if (r.ok) location.reload();
-        }}>📂 프로젝트 폴더 열기</button>
+        }}>📂 Open project folder</button>
       </div>
     );
   }
@@ -62,7 +62,7 @@ export function App() {
           : <div id="stage"><FlowCanvas view={view} /></div>}
         {termOpen && (
           <>
-            <div id="paneldiv" onMouseDown={startDivDrag} title="드래그해서 패널 너비 조절" />
+            <div id="paneldiv" onMouseDown={startDivDrag} title="Drag to resize" />
             <div id="termpanel" style={{ width: ui.termW || 440 }}>
               <TerminalPanel onClose={() => setUI({ termOpen: false })} />
             </div>

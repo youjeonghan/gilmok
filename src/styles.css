@@ -137,7 +137,10 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
   padding:6px 9px;cursor:pointer;white-space:pre-wrap;overflow:hidden;display:-webkit-box;
   -webkit-line-clamp:3;-webkit-box-orient:vertical}
 .snote:hover{border-color:var(--jade)}
-.addnote{display:block;margin-top:4px;font-size:11px;color:var(--text-dim);cursor:pointer}
+/* Add note 유도 문구는 hover 시에만 (텍스트 다이어트) — 작성된 노트는 상시 노출 */
+.addnote{display:block;margin-top:4px;font-size:11px;color:var(--text-dim);cursor:pointer;
+  opacity:0;transition:opacity .15s}
+.scene:hover .addnote,.lblnode:hover .addnote,.addnote:hover{opacity:1}
 .addnote:hover{color:var(--jade)}
 .acts{display:flex;justify-content:center;gap:4px;margin-top:4px;opacity:0;transition:opacity .15s}
 .scene:hover .acts{opacity:1}
@@ -197,7 +200,8 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
 .bnl{position:absolute;top:17px;left:6px;right:6px;text-align:center;font-size:11px;
   color:var(--text-note);pointer-events:auto;cursor:pointer;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis}
-.bnl.empty{color:var(--text-dim)}
+.bnl.empty{color:var(--text-dim);opacity:0;transition:opacity .15s}
+.bnl.empty:hover,.blbl:hover~.bnl.empty{opacity:1}
 .bnl:hover{color:var(--jade)}
 .bh{position:absolute;top:-6px;width:14px;height:26px;cursor:ew-resize;pointer-events:auto}
 .bh.left{left:0}

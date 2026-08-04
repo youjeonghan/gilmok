@@ -181,7 +181,7 @@ function CanvasInner({ view }: { view: string }) {
         }));
       dragRef.current = {
         kind: 'label', flowId: d.flowId,
-        ghost: makeGhost('분기 「' + f.label + '」 이동'), targets, hit: null
+        ghost: makeGhost('Move branch “' + f.label + '”'), targets, hit: null
       };
       document.body.classList.add('noselect');
     }
@@ -200,7 +200,7 @@ function CanvasInner({ view }: { view: string }) {
       }
       drag.hit = hit;
       setCui(c => (c.anchorTarget === (hit?.nodeId ?? null) ? c : { ...c, anchorTarget: hit?.nodeId ?? null }));
-      drag.ghost.status(hit ? `'${titleOf(doc, hit.sid)}' 에서 분기` : '대상 씬 위에 놓아주세요 (놓으면 취소)', !!hit);
+      drag.ghost.status(hit ? `Branch from “${titleOf(doc, hit.sid)}”` : 'Drop on a scene (release to cancel)', !!hit);
       return;
     }
 
@@ -212,7 +212,7 @@ function CanvasInner({ view }: { view: string }) {
       drag.cur = null; drag.slot = null; drag.join = null;
       setDropbar(null);
       setCui(c => ({ ...c, shift: null, hotBracket: null }));
-      drag.ghost.status('여기엔 놓을 수 없어요 (놓으면 원위치)', false);
+      drag.ghost.status("Can't drop here (release to cancel)", false);
       return;
     }
     const f = doc.flows.find(x => x.id === lane.flowId)!;
@@ -256,9 +256,9 @@ function CanvasInner({ view }: { view: string }) {
       y: lane.laneTop + ((f.brackets || []).length ? 60 : 8),
       h: 120
     });
-    const crossing = f.id !== drag.flowId ? '「' + f.label + '」 라인으로 · ' : '';
+    const crossing = f.id !== drag.flowId ? 'To “' + f.label + '” · ' : '';
     drag.ghost.status(
-      crossing + (join != null ? '범주 「' + f.brackets[join].label + '」에 편입' : '독립 (범주 없음)'),
+      crossing + (join != null ? 'into bracket “' + f.brackets[join].label + '”' : 'no bracket'),
       join != null);
   }, [doc, layout, screenToFlowPosition]);
 
@@ -395,8 +395,8 @@ function CanvasInner({ view }: { view: string }) {
           <button onClick={() => {
             const m = menu; setMenu(null); clearSelection();
             acts.makeBracket(m.flowId, m.lo, m.hi);
-          }}>⌐ 범주로 묶기 ({menu.count}개 씬)</button>
-          <button onClick={() => { setMenu(null); clearSelection(); }}>선택 해제</button>
+          }}>⌐ Bracket {menu.count} scene{menu.count > 1 ? 's' : ''}</button>
+          <button onClick={() => { setMenu(null); clearSelection(); }}>Clear selection</button>
         </div>
       )}
     </CanvasCtx.Provider>

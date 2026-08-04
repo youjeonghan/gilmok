@@ -24,7 +24,7 @@ description: flow-map 씬 동기화 — claude.ai/design 디자인 시스템(원
 - **원격에만 있음(신규)**: `get_file`로 받아 저장.
   - 첫 줄 `@dsCard`에서 `name`(제목)·`group`(카테고리) 파싱.
   - 둘째 줄에 `<!-- @meta created="오늘" updated="오늘" -->` 삽입(이미 있으면 유지·갱신).
-  - flow.json `scenes`에 등록: id = 파일명의 의미부(번호·접미 제외, 예: `04-daily-feed.html` → `daily-feed`), title = @dsCard name, group, updated = 오늘, note "". → 씬 갤러리에 자동 표시됨. 어느 분기(seq)에 넣을지는 사용자 몫 — 임의로 라인에 넣지 않는다.
+  - flow.json `scenes`에 등록: id = 파일명의 의미부(번호·접미 제외, 예: `04-daily-feed.html` → `daily-feed`). **id가 이미 존재하면 `_2`, `_3`… 접미로 자동 회피**(기존 id는 절대 변경 금지 — seq 참조 보호). title = @dsCard name, group, updated = 오늘, note "". id는 UI에 노출되지 않는 내부 키다. → 씬 갤러리에 자동 표시됨. 어느 분기(seq)에 넣을지는 사용자 몫 — 임의로 라인에 넣지 않는다.
 - **양쪽 있음**: 원격 내용과 로컬 파일 비교(내용이 같으면 스킵). 다르면 로컬 덮어쓰기 + `@meta updated` 오늘로 + flow.json 해당 씬 `updated` 갱신.
 - **로컬에만 있음(원격에서 삭제됨)**: 지우지 말고 보고만 — 사용자 확인 후 `file: null`(미제작) 전환 또는 로컬 파일 삭제.
 
