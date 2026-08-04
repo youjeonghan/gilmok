@@ -1,6 +1,6 @@
 {
   "name": "flow-map",
-  "version": "7.1.2",
+  "version": "7.1.3",
   "description": "길목 — 분기 라인 위 씬 프리뷰로 서비스 흐름을 조망·편집",
   "main": "main.js",
   "author": "youjeonghan",

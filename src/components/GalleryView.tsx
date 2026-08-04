@@ -15,7 +15,7 @@ export function GalleryView() {
     <div id="gallerywrap">
       {Object.keys(groups).map(g => (
         <div key={g}>
-          <div className="seccap">⌁ {g} ({groups[g].length})</div>
+          <div className="seccap">🗂️ {g} ({groups[g].length})</div>
           <div className="gallery">
             {groups[g].map(id => (
               <div key={id} className="scene nogutter" style={{ width: 222 }}>

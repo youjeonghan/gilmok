@@ -50,7 +50,9 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
 .tools button:hover{border-color:var(--jade);color:var(--jade)}
 .tools button:disabled{opacity:.55;cursor:default}
 .tools .iconbtn{display:flex;align-items:center;padding:7px 9px}
-#tabs{display:flex;gap:2px;width:100%;padding-top:8px}
+#tabs{display:flex;gap:2px;width:100%;padding-top:8px;align-items:stretch}
+#tabs .tabsp{flex:1}
+#tabs .tabdiv{width:1px;background:var(--border-strong);margin:8px 10px}
 #tabs .tab{font:inherit;font-size:13.5px;font-weight:700;padding:8px 16px;border:none;background:transparent;
   color:var(--mist);cursor:pointer;border-bottom:2.5px solid transparent}
 #tabs .tab.on{color:var(--primary-600);border-bottom-color:var(--primary-600)}
@@ -65,6 +67,9 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
 /* ===== 작업 영역 (캔버스 + 터미널 패널) ===== */
 #workarea{flex:1;display:flex;min-height:0}
 #stage{flex:1;min-width:0;min-height:0;position:relative}
+/* will-change가 뷰포트를 레이어로 승격하면 브라우저가 비트맵을 확대해 텍스트가 깨진다 —
+   해제해서 줌 배율마다 다시 래스터라이즈하게 한다 */
+#stage .react-flow__viewport{will-change:auto !important}
 #paneldiv{width:5px;cursor:ew-resize;background:var(--border-strong);flex:none}
 #paneldiv:hover{background:var(--jade)}
 #termpanel{flex:none;display:flex;flex-direction:column;background:#141618;min-width:300px;position:relative}

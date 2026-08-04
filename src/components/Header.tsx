@@ -223,12 +223,15 @@ export function Header() {
             }}>✕</span>
           </button>
         ))}
-        <button className={'tab' + (activeTab === 'scenes' ? ' on' : '')}
-          onClick={() => setActiveTab('scenes')}>⊞ 씬 갤러리</button>
         <button className="tab add" title="새 플로우 탭 추가" onClick={async () => {
           const id = await acts.addTab();
           if (id) setActiveTab(id);
         }}>＋ 탭</button>
+        <span className="tabsp" />
+        <span className="tabdiv" />
+        <button className={'tab' + (activeTab === 'scenes' ? ' on' : '')}
+          title="모든 씬을 카테고리별로 모아보기 (플로우와 별개)"
+          onClick={() => setActiveTab('scenes')}>🗂️ 씬 갤러리</button>
       </nav>
     </header>
   );

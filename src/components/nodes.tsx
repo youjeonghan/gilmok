@@ -271,7 +271,7 @@ export function SeccapNode({ data }: NodeProps) {
   const { setActiveTab } = useStore();
   return (
     <div className="seccap link nodrag" title="이 플로우 탭으로 이동"
-      onClick={() => setActiveTab(d.tabId)}>⌁ {d.title}</div>
+      onClick={() => setActiveTab(d.tabId)}>🔀 {d.title}</div>
   );
 }
 
