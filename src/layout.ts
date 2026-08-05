@@ -191,7 +191,8 @@ export function computeLayout(
           id: `et:${cf.id}`, type: 'trunk',
           source: parentNid, sourceHandle: 'b',
           target: `lbl:${cf.id}`, targetHandle: 'l',
-          data: { startY: prevArmY == null ? parentBottom + DROP_PAD : prevArmY + SEG_GAP }
+          // 소스 핸들(부모 하단) 기준 상대값 — 드래그 중에도 뿌리가 라이브로 따라온다
+          data: { startDY: prevArmY == null ? DROP_PAD : prevArmY + SEG_GAP - parentBottom }
         });
         prevArmY = armY;
         const h = layoutBlock(cf, tab, cLabelX, childY, new Set([...ancestors, sid]), false);
@@ -251,11 +252,13 @@ export function computeLayout(
           const cOff = (doc.layout?.[tab.id]?.offsets?.[cf.id]) || { dx: 0, dy: 0 };
           const cBrPad = (cf.brackets || []).length ? BRACKET_PAD : 0;
           const armY = childY + cOff.dy + cBrPad + THUMB_H / 2;
+          // 라벨 소스 핸들은 알약 하단(≈labelY+24) — 그 기준 상대값
+          const pillBottom = firstLabelY + DEFAULT_LABEL_H;
           edges.push({
             id: `et:${cf.id}`, type: 'trunk',
             source: firstLblId, sourceHandle: 'b',
             target: `lbl:${cf.id}`, targetHandle: 'l',
-            data: { startY: prevArmY == null ? anchorBottom + DROP_PAD : prevArmY + SEG_GAP }
+            data: { startDY: prevArmY == null ? anchorBottom + DROP_PAD - pillBottom : prevArmY + SEG_GAP - pillBottom }
           });
           prevArmY = armY;
           const h = layoutBlock(cf, tab, cLabelX, childY, new Set([startSid]), false);

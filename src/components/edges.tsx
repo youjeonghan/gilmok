@@ -38,11 +38,11 @@ export function HArrowEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
 }
 
 /** 부모(씬/라벨) → 자식 분기 라벨: 세로 트렁크 + 라운드 코너 + 수평 갈래 + 화살촉.
- *  data.startY = 이 세그먼트의 시작 y (첫 갈래는 앵커 하단+8, 이후는 이전 갈래 y+8 — v6와 동일) */
-export function TrunkEdge({ sourceX, targetX, targetY, data }: EdgeProps) {
+ *  시작점은 소스 핸들 기준 상대값(startDY) — 드래그 중에도 뿌리가 노드를 따라온다 */
+export function TrunkEdge({ sourceX, sourceY, targetX, targetY, data }: EdgeProps) {
   const x = sourceX;
   const y = targetY;
-  const startY = (data as any)?.startY ?? y - 40;
+  const startY = sourceY + ((data as any)?.startDY ?? 8);
   const r = Math.min(CORNER_R, Math.max(0, y - startY));
   const endX = targetX - ARROW_H;
   const d = `M ${x} ${startY} L ${x} ${y - r} Q ${x} ${y} ${x + r} ${y} L ${endX} ${y}`;
