@@ -125,6 +125,9 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
 .scene .gutter{position:absolute;left:222px;top:0;width:34px;height:132px;display:flex;
   align-items:center;justify-content:center}
 .scene.nogutter .gutter{display:none}
+/* RF는 비드래그·비선택 노드에 pointer-events:none을 건다 — 루트 카드·첫 Scene 추가·섹션 캡션은 되살린다
+   (Bracket이 .blbl/.bh에 auto를 주는 것과 같은 관례) */
+.scene.nogutter,.seccap{pointer-events:auto}
 .thumb{width:212px;height:132px;margin:0 auto;border:1px solid var(--border);border-radius:12px;
   overflow:hidden;background:#fff;position:relative}
 .thumb.click{cursor:grab}
