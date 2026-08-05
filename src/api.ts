@@ -20,6 +20,13 @@ export const postFlow = (body: string) =>
 export const pickFolder = async (): Promise<{ ok: boolean; dataDir?: string }> =>
   (await fetch('api/pick-folder', { method: 'POST' })).json();
 
+export const useFolder = async (dir: string): Promise<{ ok: boolean; dataDir?: string; error?: string }> =>
+  (await fetch('api/use-folder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dir })
+  })).json();
+
 export const installSkill = async (): Promise<{ ok: boolean; path?: string; error?: string }> =>
   (await fetch('api/install-skill', { method: 'POST' })).json();
 

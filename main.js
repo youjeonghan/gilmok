@@ -305,6 +305,7 @@ function startServer() {
             projectKey: dataDir || '(none)',
             skillInstalled: dataDir ? skillInstalled(dataDir) : false,
             needProject: !dataDir,
+            recent: loadConfig().recent || [],
             canPick: true,
             canUpdate: true,
             canTerm: !!ptyMod,
@@ -341,6 +342,20 @@ function startServer() {
           });
           if (r.canceled || !r.filePaths.length) return sendJSON(res, { ok: false });
           dataDir = r.filePaths[0];
+          const cfg = loadConfig();
+          cfg.lastProject = dataDir;
+          cfg.recent = [dataDir, ...(cfg.recent || []).filter(p => p !== dataDir)].slice(0, 10);
+          saveConfig(cfg);
+          watchDataDir();
+          return sendJSON(res, { ok: true, dataDir });
+        }
+        if (u.startsWith('/api/use-folder')) { // 최근 목록에서 바로 전환 (다이얼로그 없이)
+          if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
+          const body = await readBody(req);
+          let dir = '';
+          try { dir = JSON.parse(body.toString()).dir || ''; } catch (e) { /* ignore */ }
+          if (!dir || !fs.existsSync(path.join(dir, 'flow.json'))) return sendJSON(res, { ok: false, error: 'no flow.json' });
+          dataDir = dir;
           const cfg = loadConfig();
           cfg.lastProject = dataDir;
           cfg.recent = [dataDir, ...(cfg.recent || []).filter(p => p !== dataDir)].slice(0, 10);

@@ -1,9 +1,13 @@
 /* 상단 헤더 — 서비스 브랜드 · 전체 테마 · 도구 버튼 · 탭 */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { useActions } from '../actions';
 import { useDialogs } from '../dialogs';
-import { pickFolder, installSkill, updateCheck, updateDownload, openFolder } from '../api';
+import { pickFolder, installSkill, updateCheck, updateDownload, openFolder, useFolder } from '../api';
+
+/** 경로 뒤 두 세그먼트만 표시 (전체는 title로) */
+const shortPath = (p: string) =>
+  p.replace(/[\\/]+$/, '').split(/[\\/]/).slice(-2).join('/');
 
 /** 우측 패널 토글 아이콘 (□| 레이아웃) */
 function PanelIcon({ open }: { open: boolean }) {
@@ -38,6 +42,17 @@ export function Header() {
   const acts = useActions();
   const dialogs = useDialogs();
   const [updState, setUpdState] = useState<'idle' | 'checking' | 'downloading'>('idle');
+  const [projOpen, setProjOpen] = useState(false);
+  const projRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!projOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (projRef.current && !projRef.current.contains(e.target as Node)) setProjOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [projOpen]);
 
   const s = doc?.service || { name: '서비스', icon: '' };
 
@@ -177,13 +192,34 @@ export function Header() {
       </div>
       <div className="tools">
         {isServer && (
-          <button title="현재 데이터 폴더를 탐색기로 열기" onClick={() => openFolder()}>📂 프로젝트</button>
-        )}
-        {server?.canPick && (
-          <button className="iconbtn" title="다른 프로젝트 폴더로 전환" onClick={async () => {
-            const r = await pickFolder();
-            if (r.ok) location.reload();
-          }}>⇄</button>
+          <span className="projwrap" ref={projRef}>
+            <button className={projOpen ? 'on' : ''} title="현재 폴더 확인 · 열기 · 전환"
+              onClick={() => setProjOpen(o => !o)}>📂 프로젝트</button>
+            {projOpen && (
+              <div className="projmenu">
+                <div className="pm-cur" title={(server?.dataDir || '') + ' — 클릭하면 탐색기로 열기'}
+                  onClick={() => { openFolder(); setProjOpen(false); }}>
+                  <span className="pm-badge">현재</span>
+                  <span className="pm-path">{shortPath(server?.dataDir || '')}</span>
+                  <span className="pm-act">탐색기 ↗</span>
+                </div>
+                {(server?.recent || []).filter(p => p !== server?.dataDir).map(p => (
+                  <div key={p} className="pm-item" title={p + ' — 이 프로젝트로 전환'}
+                    onClick={async () => {
+                      const r = await useFolder(p);
+                      if (r.ok) location.reload();
+                      else await dialogs.askInfo('전환 실패 — 폴더에 flow.json이 없어요.\n' + p);
+                    }}>{shortPath(p)}</div>
+                ))}
+                <div className="pm-sep" />
+                <div className="pm-item pm-pick" onClick={async () => {
+                  setProjOpen(false);
+                  const r = await pickFolder();
+                  if (r.ok) location.reload();
+                }}>⇄ 다른 폴더 선택…</div>
+              </div>
+            )}
+          </span>
         )}
         {server?.canUpdate && (
           <button title="새 버전 확인 후 수동 업데이트" disabled={updState !== 'idle'} onClick={onUpdate}>

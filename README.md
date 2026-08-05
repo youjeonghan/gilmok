@@ -1,25 +1,55 @@
-# 길목 (flow-map)
+<div align="center">
 
-서비스 흐름을 **분기 라인 위 씬 프리뷰**로 조망·편집하는 데스크톱 앱(Electron). mac·Windows 지원.
-앱 이름은 **길목**(흐름이 갈라지는 길목을 내려다보는 도구), 저장소·실행파일명은 flow-map.
+<img src="build/icon.png" width="96" alt="길목 로고" />
 
-- **뷰어: React + TypeScript + React Flow** (v7) — 팬/줌(Ctrl+휠)·미니맵·탭별 뷰포트 기억
-- **⌨ 내장 Claude Code 터미널** (v7.1) — 데이터 폴더에서 `claude` CLI를 바로 실행(로컬 로그인·구독 그대로, API 키 불필요). AI가 flow.json을 고치면 캔버스에 즉시 반영되고 Ctrl+Z로 되돌릴 수 있다
-- 탭(플로우)·분기(트렁크/라운드 커넥터)·범주(⌐¬)·노트·테마·씬 갤러리·드래그 편집·Ctrl+Z
-- 앱 라이트/다크 테마(⚙ 설정)
-- 데이터는 프로젝트별 폴더(`flow.json` + `scenes/`) — 도구와 분리, **편집은 flow.json에 자동 저장**
-- claude.ai/design 연동(선택): 씬별 편집 딥링크, 디자인 시스템 바로가기, flow-sync 스킬 설치 버튼
-- **앱 내 '⟳ 업데이트 확인'** — 새 릴리스를 확인하고 설치 파일을 받아 수동 업데이트(서명/공증 불필요 구조)
+# 길목
 
-## 설치 / 사용
+**서비스 흐름을 분기 라인 위 Scene 프리뷰로 조망·편집하는 데스크톱 앱**
+
+흐름이 갈라지는 "길목"을 내려다보는 도구 · 저장소/실행파일명은 `flow-map`
+
+![version](https://img.shields.io/badge/version-0.7.x-E8563C) ![platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS-1F6E63) ![stack](https://img.shields.io/badge/Electron%20%2B%20React%20Flow-TypeScript-20282A)
+
+<img src="docs/shot-main.png" width="920" alt="길목 메인 캔버스 — 분기 라인 위 Scene 프리뷰" />
+
+</div>
+
+---
+
+## 무엇을 하는 앱인가
+
+기획 중인 서비스의 화면(Scene) HTML들을 **플로우 다이어그램 위에 실물 썸네일로** 늘어놓고, 분기(Branch)·구간(Bracket)·노트를 붙여 전체 흐름을 한눈에 본다. 모든 편집은 `flow.json` 하나에 자동 저장되므로 **AI에게는 이 파일 하나만 읽히면** 전체 플로우를 이해시킬 수 있다.
+
+## 주요 기능
+
+- **캔버스 뷰어** — React Flow 기반. 팬/줌(Ctrl+휠, 스페이스+드래그), 실사 썸네일 미니맵, 탭별 뷰포트 기억, 앱 라이트/다크 테마
+- **드래그 편집** — 카드 드래그로 순서 이동(다른 Branch로도), Branch 라벨 드래그로 재앵커·**자유 배치**(블록 통째 이동, 겹치면 빨간 박스로 안내 후 원위치), Shift+드래그 → 우클릭으로 Bracket 묶기, 모든 편집 Ctrl+Z
+- **⌨ 내장 Claude Code 터미널** — 데이터 폴더에서 `claude` CLI를 바로 실행(로컬 로그인·구독 그대로, API 키 불필요). AI가 flow.json을 고치면 캔버스에 즉시 반영
+- **📂 프로젝트 메뉴** — 현재 폴더 확인·탐색기 열기·최근 프로젝트 전환·다른 폴더 선택을 버튼 하나로
+- **Scene 갤러리** — 그룹(카테고리)별 썸네일 카탈로그
+- **claude.ai/design 연동(선택)** — Scene별 편집 딥링크, 디자인 시스템 바로가기, flow-sync 스킬 설치
+- **⟳ 앱 내 업데이트 확인** — 새 릴리스 확인 후 설치 파일 수동 업데이트(서명/공증 불필요 구조)
+
+<div align="center">
+<img src="docs/shot-terminal.png" width="920" alt="내장 Claude Code 터미널 — 데이터 폴더에서 구독 로그인 그대로 실행" />
+<br/><sub>내장 Claude Code 터미널 — AI가 flow.json을 편집하면 캔버스에 즉시 반영</sub>
+<br/><br/>
+<img src="docs/shot-project-menu.png" width="920" alt="프로젝트 메뉴 — 현재 폴더·최근 프로젝트·폴더 전환" />
+<br/><sub>📂 프로젝트 메뉴 — 현재 폴더 열기와 프로젝트 전환을 한 곳에서</sub>
+</div>
+
+## 설치
 
 1. [Releases](https://github.com/youjeonghan/flow-map/releases)에서 설치 파일 다운로드
    - Windows: `flow-map-setup-<버전>.exe` (SmartScreen 경고 시 '추가 정보 → 실행')
    - mac: `flow-map-<버전>-arm64.dmg` (Gatekeeper 차단 시 시스템 설정 → 개인정보 보호 및 보안에서 허용)
-2. 실행 → **📂 프로젝트 폴더 열기**로 `flow.json`이 있는 데이터 폴더 선택 (마지막 프로젝트 기억)
+2. 실행 → **📂 프로젝트**로 `flow.json`이 있는 데이터 폴더 선택 (마지막 프로젝트 기억)
 3. 편집은 자동 저장. 업데이트는 **⟳ 업데이트 확인** 버튼 (private 릴리스는 `gh` CLI 로그인 또는 설정의 GitHub 토큰 필요)
 
-### 개발 실행
+> 자세한 사용법은 **[문서](docs/README.md)** 참고 — [시작하기](docs/getting-started.md) · [사용법](docs/usage.md) · [flow.json 스펙](docs/flow-json.md) · [Claude Code 연동](docs/claude-code.md) · [FAQ](docs/faq.md)
+> (private 저장소는 GitHub Wiki를 지원하지 않아 `docs/`로 운영 — 공개 전환 시 Wiki로 이전 가능)
+
+## 개발 실행
 
 ```
 npm install
@@ -28,7 +58,7 @@ npm run dev                # 뷰어만 브라우저 개발 서버 (정적 모드
 npm run dist               # 로컬 인스톨러 빌드
 ```
 
-뷰어 소스는 `src/` (React + TS), 빌드 출력은 `web/` — Electron(main.js)과 Go 서버(main.go embed)가 그대로 서빙한다.
+뷰어 소스는 `src/`(React + TS), 빌드 출력은 `web/` — Electron(`main.js`)과 Go 서버(`main.go` embed)가 그대로 서빙한다.
 레이아웃 좌표 계산은 `src/layout.ts`, 캔버스 인터랙션은 `src/components/FlowCanvas.tsx`.
 
 ### Go 서버 (헤드리스/폴백)
@@ -44,7 +74,7 @@ flow-map-server <데이터폴더>   # 브라우저로 열림, flow.json 자동 �
 ```
 <project>/flow-map/
   flow.json     # 플로우 정본 — 아래 스키마
-  scenes/…      # 씬 HTML (self-contained). claude.ai/design 미러라면 scenes/<원격경로>
+  scenes/…      # Scene HTML (self-contained). claude.ai/design 미러라면 scenes/<원격경로>
 ```
 
 ## flow.json 스키마
@@ -52,37 +82,40 @@ flow-map-server <데이터폴더>   # 브라우저로 열림, flow.json 자동 �
 ```jsonc
 {
   "version": 3,
-  "service": { "name": "하비팅", "icon": "../app-icon.svg",    // 이모지·이미지 경로/URL·업로드(data URL)
-               "designUrl": "https://claude.ai/design/p/<id>" }, // (선택) 클로드 디자인 프로젝트 —
-                                                                 // 헤더 바로가기 + 씬별 편집 딥링크 + 스킬 설치 버튼
-  "tabs":   [ { "id", "title", "start" } ],          // 탭 = 독립 플로우, start = 루트 씬 id (null = ＋카드)
+  "service": { "name": "하비팅", "icon": "app-icon.svg",         // 이모지·이미지 경로/URL·업로드(data URL)
+               "designUrl": "https://claude.ai/design/p/<id>" },  // (선택) 클로드 디자인 프로젝트
+  "tabs":   [ { "id", "title", "start" } ],          // Tab = 독립 플로우, start = 루트 Scene id (null = ＋카드)
   "scenes": { "<id>": {
-      "title",                                        // 표시 이름
-      "file",                                         // default 테마 씬 경로 · null = 미제작
-      "themes": { "dark": "…" },                      // 테마별 대체 씬
+      "title",                                        // 표시 이름 (id는 제목 슬러그로 자동 발급, UI 비노출)
+      "file",                                         // default 테마 Scene 경로 · null = 미제작
+      "themes": { "dark": "…" },                      // 테마별 대체 Scene
       "group",                                        // (선택) 카테고리 — 갤러리 그룹·디자인 시스템 그룹
       "updated", "note" } },
   "flows":  [ { "id", "tab", "from", "label", "note",
                 "seq": ["sceneId", ...],
-                "brackets": [ { "label", "start", "end", "note" } ] } ]
+                "brackets": [ { "label", "start", "end", "note" } ] } ],
+  "layout": { "<tabId>": { "offsets": { "<flowId>": { "dx", "dy" } } } }  // 자유 배치 오프셋
 }
 ```
 
-- **id vs 제목**: 제목은 표시용, id는 내부 키(파일 매핑·seq 참조·AI 참조). 빈 씬은 id 자동 발급(`new-N`).
-- 플로우·분기·범주·노트가 flow.json 하나에 있으므로 AI에게는 이 파일만 읽히면 된다.
+- **id vs 제목**: 제목은 표시용, id는 내부 키(파일 매핑·seq 참조·AI 참조). 제목 슬러그로 자동 발급, 중복 시 `_2`.
+- 플로우·분기·범주·노트·배치가 flow.json 하나에 있으므로 AI에게는 이 파일만 읽히면 된다.
 
 ## claude.ai/design 연동 (선택)
 
 `service.designUrl`을 설정(⚙)하면:
-- 헤더 '↗ 디자인 시스템' + 씬 카드 '↗ 디자인'(딥링크 `?file=<원격경로>`, 로컬 `scenes/` 접두사 제거 규약)
-- 헤더 '⤓ 스킬 설치' — 데이터 폴더가 속한 git 레포의 `.claude/skills/flow-sync/`에 [flow-sync 스킬](skills/flow-sync/SKILL.md)을 설치. 이후 Claude Code에서 `/flow-sync`로 원격 씬 동기화.
 
-## 릴리스
+- 헤더 '↗ 디자인 시스템' + Scene 카드 '↗ 디자인' (딥링크 `?file=<원격경로>`, 로컬 `scenes/` 접두사 제거 규약)
+- 헤더 '⤓ 스킬 설치' — 데이터 폴더가 속한 git 레포의 `.claude/skills/flow-sync/`에 [flow-sync 스킬](skills/flow-sync/SKILL.md)을 설치. 이후 Claude Code에서 `/flow-sync`로 원격 Scene 동기화.
+
+## 버전 정책 · 릴리스
+
+**0.x대에서 1.0을 준비 중** — 패치는 `0.7.x`, 다음 기능 단위는 `0.8.0`, 정식 출시가 `1.0.0`. (구 `7.x` 태그는 히스토리)
 
 태그를 푸시하면 GitHub Actions가 Windows 인스톨러(NSIS)·mac dmg/zip·Go 서버 바이너리를 빌드해 Release에 첨부한다:
 
 ```
-git tag v6.0.0 && git push origin v6.0.0
+git tag v0.7.6 && git push origin v0.7.6
 ```
 
 버전 이력: [CHANGELOG.md](CHANGELOG.md)

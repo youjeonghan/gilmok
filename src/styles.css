@@ -45,6 +45,23 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
 .tip ul{list-style:none}
 .tip li{padding-left:2px}
 .tools{display:flex;gap:6px;align-items:center}
+.projwrap{position:relative;display:inline-flex}
+.projmenu{position:absolute;top:calc(100% + 6px);right:0;z-index:70;min-width:280px;max-width:420px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  box-shadow:0 12px 34px rgba(0,0,0,.22);padding:6px;font-size:13px}
+.projmenu .pm-cur{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;cursor:pointer}
+.projmenu .pm-cur:hover{background:var(--hover-bg)}
+.projmenu .pm-badge{flex:none;font-size:10.5px;font-weight:800;color:var(--jade);
+  border:1px solid var(--jade);border-radius:6px;padding:1px 5px}
+.projmenu .pm-path{flex:1;min-width:0;font-weight:700;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}
+.projmenu .pm-act{flex:none;font-size:11.5px;color:var(--text-faint)}
+.projmenu .pm-cur:hover .pm-act{color:var(--jade)}
+.projmenu .pm-item{padding:8px 10px 8px 33px;border-radius:8px;cursor:pointer;color:var(--text-sub);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}
+.projmenu .pm-item:hover{background:var(--hover-bg);color:var(--ink)}
+.projmenu .pm-sep{height:1px;background:var(--border-soft);margin:5px 8px}
+.projmenu .pm-pick{direction:ltr;padding-left:10px;font-weight:600}
 .tools button{font:inherit;font-size:13px;font-weight:600;padding:7px 12px;border-radius:9px;
   border:1px solid var(--border);background:var(--surface);color:var(--text-sub);cursor:pointer}
 .tools button:hover{border-color:var(--jade);color:var(--jade)}

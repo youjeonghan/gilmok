@@ -60,6 +60,7 @@ export interface ServerInfo {
   projectKey: string;
   skillInstalled: boolean;
   needProject: boolean;
+  recent?: string[];
   canPick: boolean;
   canUpdate: boolean;
   canTerm?: boolean;
