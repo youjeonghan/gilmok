@@ -10,7 +10,7 @@ description: flow-map 씬 동기화 — claude.ai/design 디자인 시스템(원
 ## 0. 대상 결정
 
 - 데이터 폴더: ① 사용자가 지정한 폴더 → ② 현재 레포에서 `flow.json`을 가진 flow-map 데이터 폴더 탐색(`**/flow-map/flow.json`; 하나면 그것, 여럿이면 사용자에게 질문).
-- `flow.json` 읽기. 클로드 디자인 프로젝트 ID는 `service.designUrl`의 `/p/<uuid>`에서 추출. **designUrl이 없으면 이 프로젝트는 클로드 디자인을 안 쓰는 것 — 동기화 대상이 아님을 안내하고 종료.**
+- `flow.json` 읽기. 클로드 디자인 프로젝트 ID는 `service.designUrl`의 `/p/<uuid>`에서 추출. **designUrl이 없으면** `DesignSync list_projects`로 프로젝트 목록을 받아 서비스 이름(`service.name`)과 맞는 것을 사용자에게 확인받아 선택하고, 진행 전에 `service.designUrl`을 `https://claude.ai/design/p/<uuid>`로 채워 기록한다. 사용자가 클로드 디자인을 안 쓴다고 하면 동기화 대상이 아님을 안내하고 종료.
 
 ## 1. 원격 목록 조회
 

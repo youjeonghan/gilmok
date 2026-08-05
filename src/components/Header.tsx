@@ -21,7 +21,7 @@ function PanelIcon({ open }: { open: boolean }) {
   );
 }
 
-const VER = '0.7.5'; // 서버 미응답 시 폴백 표기 — 실제 버전은 server.version
+const VER = '0.7.7'; // 서버 미응답 시 폴백 표기 — 실제 버전은 server.version
 const APP_NAME = '길목'; // 저장소·실행파일명은 flow-map 유지, 표시 이름만 길목
 
 /** 앱 로고 — 씬 카드 두 장을 ㄴ자 커넥터로 잇는 글리프 */
@@ -68,7 +68,6 @@ export function Header() {
   const iconIsImg = /\.(png|svg|jpe?g|webp|gif|ico)$/i.test(icon) || icon.includes('/');
 
   const openSettings = async () => {
-    const hasUploaded = (s.icon || '').startsWith('data:');
     const r = await dialogs.ask('설정', [
       {
         key: 'appTheme', label: '앱 테마', type: 'select', value: appTheme,
@@ -76,27 +75,24 @@ export function Header() {
       },
       { key: 'name', label: '프로젝트 이름', value: s.name || '' },
       {
-        key: 'icon',
-        label: '프로젝트 아이콘 — 이모지 또는 이미지 경로/URL' + (hasUploaded ? ' (현재: 업로드된 이미지)' : ''),
-        value: hasUploaded ? '' : (s.icon || ''), placeholder: '🧩 또는 icon.svg'
+        key: 'iconFile',
+        label: '프로젝트 아이콘 — 이미지 파일 등록' + (s.icon ? ' (미선택 시 현재 아이콘 유지)' : ''),
+        type: 'file', accept: 'image/*'
       },
-      { key: 'iconFile', label: '또는 이미지 파일 직접 등록 (선택하면 위 입력보다 우선)', type: 'file', accept: 'image/*' },
       {
-        key: 'designUrl', label: '클로드 디자인 프로젝트 URL (Scene 편집 바로가기용)',
+        key: 'designUrl', label: '클로드 디자인 프로젝트 URL (선택 — Scene 편집 바로가기용)',
         value: s.designUrl || '', placeholder: 'https://claude.ai/design/p/…'
       }
     ]);
     if (!r) return;
     if (r.appTheme === 'light' || r.appTheme === 'dark') setAppTheme(r.appTheme);
-    let nextIcon: string = r.icon || '';
+    let nextIcon: string = s.icon || ''; // 파일 미선택 → 기존 아이콘 유지
     if (r.iconFile) {
       nextIcon = await new Promise<string>(res => {
         const fr = new FileReader();
         fr.onload = () => res(fr.result as string);
         fr.readAsDataURL(r.iconFile);
       });
-    } else if (!r.icon && hasUploaded) {
-      nextIcon = s.icon; // 파일 미선택 + 입력 비움 → 기존 업로드 유지
     }
     commit(d => { d.service = { name: r.name || '프로젝트', icon: nextIcon, designUrl: r.designUrl || '' }; });
   };
@@ -230,8 +226,8 @@ export function Header() {
           <button title="claude.ai/design 디자인 시스템 열기"
             onClick={() => window.open(s.designUrl, '_blank')}>↗ 디자인 시스템</button>
         )}
-        {isServer && s.designUrl && server && !server.skillInstalled && (
-          <button title="flow-sync 스킬을 이 프로젝트의 .claude/skills에 설치"
+        {isServer && server && !server.skillInstalled && (
+          <button title="flow-sync 스킬을 이 프로젝트의 .claude/skills에 설치 (디자인 URL 없어도 설치 가능)"
             onClick={onInstallSkill}>⤓ 스킬 설치</button>
         )}
         <button onClick={() => dialogs.openExport(cleanDoc())}>내보내기</button>
@@ -254,7 +250,9 @@ export function Header() {
           onClick={() => setActiveTab('all')}>전체</button>
         {doc.tabs.map(t => (
           <button key={t.id} className={'tab' + (activeTab === t.id ? ' on' : '')}
-            onClick={() => setActiveTab(t.id)}>
+            title="더블클릭 = 이름 수정"
+            onClick={() => setActiveTab(t.id)}
+            onDoubleClick={() => acts.renameTab(t.id)}>
             {t.title}
             <span className="tx" title="Tab 삭제" onClick={async e => {
               e.stopPropagation();

@@ -239,6 +239,20 @@ export function useActions() {
       commit(d => { d.tabs.push({ id, title: r.title, start: null }); });
       return id;
     },
+    async renameTab(tabId: string) {
+      if (!doc) return;
+      const t = doc.tabs.find(x => x.id === tabId);
+      if (!t) return;
+      const r = await dialogs.ask('Tab 이름 수정', [
+        { key: 'title', label: 'Tab 이름', value: t.title }
+      ]);
+      if (!r || !r.title || r.title === t.title) return;
+      if (doc.tabs.some(x => x.id !== tabId && x.title === r.title)) {
+        await dialogs.askInfo('같은 이름의 Tab이 이미 있어요 — 이름은 유니크해야 해요.');
+        return;
+      }
+      commit(d => { const dt = d.tabs.find(x => x.id === tabId); if (dt) dt.title = r.title; });
+    },
     async deleteTab(tabId: string, title: string) {
       if (!(await dialogs.askConfirm(`Tab 「${title}」와 그 Branch들을 삭제할까요? (Scene은 유지)`))) return false;
       commit(d => {

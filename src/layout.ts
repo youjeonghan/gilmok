@@ -236,29 +236,22 @@ export function computeLayout(
         target: `lbl:${fs[0].id}`, targetHandle: 'l'
       });
       bottom = Math.max(bottom, flowsY + h0);
-      // 루트에서 갈라지는 2번째+ 플로우 — 첫 라벨 아래 트렁크로 앵커
+      // 루트에서 갈라지는 2번째+ 플로우 — 첫 Scene 카드 아래 트렁크로 앵커
+      // (라벨이 아닌 카드에서 직접 내려와 '첫 Scene의 Branch'로 읽힌다)
       if (fs.length > 1) {
-        const firstLblId = `lbl:${fs[0].id}`;
-        const fld = labelDim(firstLblId);
-        const pw = pillW(fs[0].id);
-        const foff = doc.layout?.[tab.id]?.offsets?.[fs[0].id] || { dx: 0, dy: 0 };
-        const anchorX = firstLabelX + foff.dx + (pw != null ? pw / 2 : fld.w / 2);
-        const firstLabelY = firstSceneY + foff.dy + THUMB_H / 2 - PILL_CENTER_Y;
-        const anchorBottom = firstLabelY + fld.h;
+        const rootNodeBottom = firstSceneY - RCAP_H + sceneH(rootId);
         let childY = bottom + GROUP_GAP;
         let prevArmY: number | null = null;
         fs.slice(1).forEach(cf => {
-          const cLabelX = anchorX + LBL_ARM;
+          const cLabelX = rootX + CARD_CENTER + LBL_ARM;
           const cOff = (doc.layout?.[tab.id]?.offsets?.[cf.id]) || { dx: 0, dy: 0 };
           const cBrPad = (cf.brackets || []).length ? BRACKET_PAD : 0;
           const armY = childY + cOff.dy + cBrPad + THUMB_H / 2;
-          // 라벨 소스 핸들은 알약 하단(≈labelY+24) — 그 기준 상대값
-          const pillBottom = firstLabelY + DEFAULT_LABEL_H;
           edges.push({
             id: `et:${cf.id}`, type: 'trunk',
-            source: firstLblId, sourceHandle: 'b',
+            source: rootId, sourceHandle: 'b',
             target: `lbl:${cf.id}`, targetHandle: 'l',
-            data: { startDY: prevArmY == null ? anchorBottom + DROP_PAD - pillBottom : prevArmY + SEG_GAP - pillBottom }
+            data: { startDY: prevArmY == null ? DROP_PAD : prevArmY + SEG_GAP - rootNodeBottom }
           });
           prevArmY = armY;
           const h = layoutBlock(cf, tab, cLabelX, childY, new Set([startSid]), false);
