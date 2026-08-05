@@ -16,7 +16,7 @@ try { ptyMod = require('@lydell/node-pty'); } catch (e) { console.warn('node-pty
 
 const VERSION = require('./package.json').version;
 const APP_NAME = '길목';
-const REPO = 'youjeonghan/flow-map';
+const REPO = 'youjeonghan/gilmok';
 const WEB_DIR = path.join(__dirname, 'web');
 const SKILL_SRC = path.join(__dirname, 'skills', 'flow-sync', 'SKILL.md');
 

@@ -6,7 +6,7 @@
 
 **서비스 흐름을 분기 라인 위 Scene 프리뷰로 조망·편집하는 데스크톱 앱**
 
-흐름이 갈라지는 "길목"을 내려다보는 도구 · 저장소/실행파일명은 `flow-map`
+흐름이 갈라지는 "길목"을 내려다보는 도구 · 저장소는 `gilmok`, 실행파일명은 `flow-map`
 
 ![version](https://img.shields.io/badge/version-0.7.x-E8563C) ![platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS-1F6E63) ![stack](https://img.shields.io/badge/Electron%20%2B%20React%20Flow-TypeScript-20282A)
 
@@ -19,6 +19,12 @@
 ## 무엇을 하는 앱인가
 
 기획 중인 서비스의 화면(Scene) HTML들을 **플로우 다이어그램 위에 실물 썸네일로** 늘어놓고, 분기(Branch)·구간(Bracket)·노트를 붙여 전체 흐름을 한눈에 본다. 모든 편집은 `flow.json` 하나에 자동 저장되므로 **AI에게는 이 파일 하나만 읽히면** 전체 플로우를 이해시킬 수 있다.
+
+## 왜 만들었나
+
+피그마·프레이머 같은 범용 디자인 도구는 화면을 그리는 데는 강력하지만, 작업물이 구조화된 데이터로 남지 않는다. 흐름 정보가 도구 내부 포맷에 갇혀 있어 AI가 전체 플로우를 파악하기 어렵고, 수정을 맡기는 것도 매끄럽지 않다.
+
+길목은 반대로 간다. 범위를 **서비스 플로우 하나로 좁히고**, 화면 순서·분기·구간·노트·배치까지 모든 상태를 **AI가 그대로 읽고 고칠 수 있는 `flow.json` 하나에 담는다**. 사람은 캔버스에서 보고 만지고, AI는 같은 데이터를 텍스트로 다룬다 — 이것이 길목의 출발점이다.
 
 ## 주요 기능
 
@@ -40,14 +46,13 @@
 
 ## 설치
 
-1. [Releases](https://github.com/youjeonghan/flow-map/releases)에서 설치 파일 다운로드
+1. [Releases](https://github.com/youjeonghan/gilmok/releases)에서 설치 파일 다운로드
    - Windows: `flow-map-setup-<버전>.exe` (SmartScreen 경고 시 '추가 정보 → 실행')
    - mac: `flow-map-<버전>-arm64.dmg` (Gatekeeper 차단 시 시스템 설정 → 개인정보 보호 및 보안에서 허용)
 2. 실행 → **📂 프로젝트**로 `flow.json`이 있는 데이터 폴더 선택 (마지막 프로젝트 기억)
-3. 편집은 자동 저장. 업데이트는 **⟳ 업데이트 확인** 버튼 (private 릴리스는 `gh` CLI 로그인 또는 설정의 GitHub 토큰 필요)
+3. 편집은 자동 저장. 업데이트는 **⟳ 업데이트 확인** 버튼
 
 > 자세한 사용법은 **[문서](docs/README.md)** 참고 — [시작하기](docs/getting-started.md) · [사용법](docs/usage.md) · [flow.json 스펙](docs/flow-json.md) · [Claude Code 연동](docs/claude-code.md) · [FAQ](docs/faq.md)
-> (private 저장소는 GitHub Wiki를 지원하지 않아 `docs/`로 운영 — 공개 전환 시 Wiki로 이전 가능)
 
 ## 개발 실행
 

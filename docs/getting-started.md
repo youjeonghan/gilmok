@@ -2,7 +2,7 @@
 
 ## 설치
 
-[Releases](https://github.com/youjeonghan/flow-map/releases)에서 최신 설치 파일을 받는다.
+[Releases](https://github.com/youjeonghan/gilmok/releases)에서 최신 설치 파일을 받는다.
 
 | OS | 파일 | 참고 |
 |---|---|---|

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- 길목 아이콘 후보 2 — 플로우 맵: 트렁크에서 갈라진 두 분기 끝에 씬 카드 (앱 화면 언어 그대로) -->
+  <rect width="512" height="512" rx="116" fill="#20282A"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round">
+    <path d="M160 146 V196 Q160 224 188 224 H276"/>
+    <path d="M160 196 V324 Q160 352 188 352 H276"/>
+  </g>
+  <circle cx="160" cy="146" r="28" fill="#E8563C"/>
+  <g>
+    <rect x="288" y="186" width="96" height="76" rx="16" fill="#FFFFFF"/>
+    <rect x="306" y="204" width="44" height="12" rx="6" fill="#20282A"/>
+    <rect x="306" y="224" width="60" height="8" rx="4" fill="#20282A" opacity="0.45"/>
+    <rect x="288" y="314" width="96" height="76" rx="16" fill="#FFFFFF"/>
+    <rect x="306" y="332" width="44" height="12" rx="6" fill="#20282A"/>
+    <rect x="306" y="352" width="60" height="8" rx="4" fill="#20282A" opacity="0.45"/>
+  </g>
+</svg>

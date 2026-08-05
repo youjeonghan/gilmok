@@ -1,3 +1,3 @@
-module github.com/youjeonghan/flow-map
+module github.com/youjeonghan/gilmok
 
 go 1.22
