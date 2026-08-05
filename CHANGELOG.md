@@ -2,6 +2,10 @@
 
 릴리스는 git 태그(`vX.Y.Z`)로 관리 — 태그 푸시 시 GitHub Actions가 OS별 설치 파일을 빌드해 Release에 첨부한다.
 
+## v7.5.1 — 2026-08-05
+
+- 창 제목 순서 변경: `길목 — 프로젝트명` (프로젝트 열기 전에는 `길목`만)
+
 ## v7.5.0 — 2026-08-05
 
 - Windows 작업표시줄에 길목 로고 아이콘 표시 (dev 실행 포함 — `build/icon.png` + AppUserModelId)

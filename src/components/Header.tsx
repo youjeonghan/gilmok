@@ -42,8 +42,10 @@ export function Header() {
   const s = doc?.service || { name: '서비스', icon: '' };
 
   useEffect(() => {
-    document.title = (s.name ? s.name + ' — ' : '') + APP_NAME;
-  }, [s.name]);
+    // 프로젝트 미선택(또는 이름 미지정) 시 "길목", 열리면 "길목 — 프로젝트명"
+    const pn = doc && s.name && s.name !== '서비스' ? s.name : '';
+    document.title = APP_NAME + (pn ? ' — ' + pn : '');
+  }, [doc, s.name]);
 
   if (!doc) return null;
 
