@@ -1,6 +1,6 @@
 {
   "name": "flow-map",
-  "version": "7.4.2",
+  "version": "7.5.0",
   "description": "길목 — 분기 라인 위 씬 프리뷰로 서비스 흐름을 조망·편집",
   "main": "main.js",
   "author": "youjeonghan",
@@ -32,12 +32,13 @@
   },
   "build": {
     "appId": "dev.youjeonghan.flowmap",
-    "productName": "flow-map",
+    "productName": "길목",
     "files": [
       "main.js",
       "package.json",
       "web/**",
-      "skills/**"
+      "skills/**",
+      "build/icon.png"
     ],
     "asarUnpack": [
       "node_modules/@lydell/**"

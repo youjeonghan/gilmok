@@ -414,10 +414,12 @@ function startServer() {
 }
 
 /* ---------- 창 ---------- */
+const APP_ICON = path.join(__dirname, 'build', 'icon.png');
 function createWindow() {
   win = new BrowserWindow({
     width: 1560, height: 980,
     title: APP_NAME,
+    ...(fs.existsSync(APP_ICON) ? { icon: APP_ICON } : {}),
     autoHideMenuBar: true,
     webPreferences: { nodeIntegration: false, contextIsolation: true }
   });
@@ -428,6 +430,8 @@ function createWindow() {
   });
   win.loadURL(baseURL);
 }
+
+app.setAppUserModelId('dev.youjeonghan.flowmap'); // 작업표시줄 그룹 아이덴티티 (dev에서도 자체 아이콘·제목 표시)
 
 app.whenReady().then(async () => {
   const cfg = loadConfig();
