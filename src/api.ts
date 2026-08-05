@@ -27,6 +27,13 @@ export const useFolder = async (dir: string): Promise<{ ok: boolean; dataDir?: s
     body: JSON.stringify({ dir })
   })).json();
 
+export const newProject = async (name: string): Promise<{ ok: boolean; dataDir?: string; error?: string }> =>
+  (await fetch('api/new-project', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name })
+  })).json();
+
 export const installSkill = async (): Promise<{ ok: boolean; path?: string; error?: string }> =>
   (await fetch('api/install-skill', { method: 'POST' })).json();
 

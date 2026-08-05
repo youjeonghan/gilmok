@@ -363,6 +363,38 @@ function startServer() {
           watchDataDir();
           return sendJSON(res, { ok: true, dataDir });
         }
+        if (u.startsWith('/api/new-project')) { // 위치 선택 → <위치>/<이름>/에 flow.json 스캐폴드
+          if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
+          const body = await readBody(req);
+          let name = '';
+          try { name = (JSON.parse(body.toString()).name || '').trim(); } catch (e) { /* ignore */ }
+          if (!name) return sendJSON(res, { ok: false, error: '이름이 비어 있어요' });
+          const r = await dialog.showOpenDialog(win, {
+            title: '새 프로젝트를 만들 위치 선택 — 그 아래에 「' + name + '」 폴더가 생성됩니다',
+            properties: ['openDirectory', 'createDirectory']
+          });
+          if (r.canceled || !r.filePaths.length) return sendJSON(res, { ok: false });
+          const safe = name.replace(/[\\/:*?"<>|]+/g, '-').replace(/^\.+/, '').trim() || 'project';
+          const dir = path.join(r.filePaths[0], safe);
+          if (fs.existsSync(path.join(dir, 'flow.json')))
+            return sendJSON(res, { ok: false, error: '이미 flow.json이 있는 폴더예요: ' + dir });
+          fs.mkdirSync(path.join(dir, 'scenes'), { recursive: true });
+          const tpl = {
+            version: 3,
+            service: { name, icon: '', designUrl: '' },
+            tabs: [{ id: 'main', title: '메인', start: null }],
+            scenes: {},
+            flows: []
+          };
+          fs.writeFileSync(path.join(dir, 'flow.json'), JSON.stringify(tpl, null, 2) + '\n');
+          dataDir = dir;
+          const cfg = loadConfig();
+          cfg.lastProject = dataDir;
+          cfg.recent = [dataDir, ...(cfg.recent || []).filter(p => p !== dataDir)].slice(0, 10);
+          saveConfig(cfg);
+          watchDataDir();
+          return sendJSON(res, { ok: true, dataDir });
+        }
         if (u.startsWith('/api/flow')) {
           if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
           if (!dataDir) return sendJSON(res, { ok: false, error: 'no project' });
@@ -424,7 +456,14 @@ function startServer() {
     });
     const wss = new WebSocketServer({ server, path: '/api/term' });
     wss.on('connection', attachTermWS);
-    server.listen(0, '127.0.0.1', () => resolve(server.address().port));
+    // 고정 포트 — origin(host:port)이 바뀌면 localStorage(앱 테마·뷰포트·탭 상태)가 통째로 날아간다.
+    // 재시작·업데이트에도 유지되도록 고정하고, 점유 중이면 임시 포트로 폴백(그 세션만 상태 미유지).
+    server.once('error', err => {
+      if (err && (err.code === 'EADDRINUSE' || err.code === 'EACCES')) {
+        server.listen(0, '127.0.0.1', () => resolve(server.address().port));
+      } else throw err;
+    });
+    server.listen(47823, '127.0.0.1', () => resolve(server.address().port));
   });
 }
 

@@ -4,10 +4,12 @@ import { Header } from './components/Header';
 import { FlowCanvas } from './components/FlowCanvas';
 import { GalleryView } from './components/GalleryView';
 import { TerminalPanel } from './components/TerminalPanel';
-import { pickFolder } from './api';
+import { pickFolder, newProject } from './api';
+import { useDialogs } from './dialogs';
 
 export function App() {
   const { phase, errMsg, doc, activeTab, server, ui, setUI } = useStore();
+  const dialogs = useDialogs();
   const dragW = useRef<number | null>(null);
 
   const startDivDrag = useCallback((e: React.MouseEvent) => {
@@ -42,6 +44,16 @@ export function App() {
           const r = await pickFolder();
           if (r.ok) location.reload();
         }}>📂 프로젝트 폴더 열기</button>
+        {' '}
+        <button onClick={async () => {
+          const r = await dialogs.ask('새 프로젝트', [
+            { key: 'name', label: '프로젝트 이름', placeholder: '예: 마이앱' }
+          ]);
+          if (!r || !r.name) return;
+          const res = await newProject(r.name);
+          if (res.ok) location.reload();
+          else if (res.error) await dialogs.askInfo('생성 실패 — ' + res.error);
+        }}>＋ 새 프로젝트 만들기</button>
       </div>
     );
   }

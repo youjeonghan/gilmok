@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { useActions } from '../actions';
 import { useDialogs } from '../dialogs';
-import { pickFolder, installSkill, updateCheck, updateDownload, openFolder, useFolder } from '../api';
+import { pickFolder, installSkill, newProject, updateCheck, updateDownload, openFolder, useFolder } from '../api';
 
 /** 경로 뒤 두 세그먼트만 표시 (전체는 title로) */
 const shortPath = (p: string) =>
@@ -213,6 +213,16 @@ export function Header() {
                   const r = await pickFolder();
                   if (r.ok) location.reload();
                 }}>⇄ 다른 폴더 선택…</div>
+                <div className="pm-item pm-pick" onClick={async () => {
+                  setProjOpen(false);
+                  const r = await dialogs.ask('새 프로젝트', [
+                    { key: 'name', label: '프로젝트 이름', placeholder: '예: 마이앱' }
+                  ]);
+                  if (!r || !r.name) return;
+                  const res = await newProject(r.name);
+                  if (res.ok) location.reload();
+                  else if (res.error) await dialogs.askInfo('생성 실패 — ' + res.error);
+                }}>＋ 새 프로젝트 만들기…</div>
               </div>
             )}
           </span>
