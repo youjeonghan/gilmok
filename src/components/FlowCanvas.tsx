@@ -179,6 +179,7 @@ function CanvasInner({ view }: { view: string }) {
   /* ---- 인터랙션 일시 상태 ---- */
   const [cui, setCui] = useState<CanvasUIState>({ shift: null, hotBracket: null, anchorTarget: null, dragSrc: null });
   const [dropbar, setDropbar] = useState<{ x: number; y: number; h: number } | null>(null);
+  const [invalidBox, setInvalidBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; flowId: string; lo: number; hi: number; count: number } | null>(null);
   const dragRef = useRef<SceneDrag | LabelDrag | null>(null);
 
@@ -196,7 +197,6 @@ function CanvasInner({ view }: { view: string }) {
       setCui(c => ({ ...c, dragSrc: node.id }));
     } else if (node.type === 'label') {
       const d = node.data as any;
-      if (d.isRootFirst) return;
       const f = doc.flows.find(x => x.id === d.flowId);
       if (!f) return;
       const block = layout.blocks[d.flowId];
@@ -206,7 +206,8 @@ function CanvasInner({ view }: { view: string }) {
       (block?.flowIds ?? [d.flowId]).forEach(fid => {
         doc.flows.find(x => x.id === fid)?.seq.forEach(s => subtreeSids.add(s));
       });
-      const targets = layout.nodes
+      // 첫 Branch는 재앵커 대상 없음(이동만) — from을 바꾸면 루트 구조가 깨지므로
+      const targets = d.isRootFirst ? [] : layout.nodes
         .filter(n => n.type === 'scene' && (n.data as any).tabId === f.tab && !subtreeSids.has((n.data as any).sid))
         .map(n => ({
           nodeId: n.id, sid: (n.data as any).sid, x: n.x, y: n.y,
@@ -265,11 +266,22 @@ function CanvasInner({ view }: { view: string }) {
       }
       drag.invalid = invalid;
       setRfNodes(prev => prev.map(n => {
-        if (!drag.subtree.has(n.id)) return n.className ? { ...n, className: undefined } : n;
+        if (!drag.subtree.has(n.id)) return n;
         const bp = drag.basePos.get(n.id)!;
         const pos = n.id === node.id ? n.position : { x: bp.x + dx, y: bp.y + dy };
-        return { ...n, position: pos, className: invalid ? 'mvbad' : undefined };
+        return { ...n, position: pos };
       }));
+      // 겹침이면 이동 중인 블록 전체를 하나의 빨간 박스로 감싼다
+      if (invalid) {
+        let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+        for (const [id, bp] of drag.basePos) {
+          const s = sizesRef.current.get(id);
+          const w = s?.w ?? CARD_W, h = s?.h ?? 60;
+          x1 = Math.min(x1, bp.x + dx); y1 = Math.min(y1, bp.y + dy);
+          x2 = Math.max(x2, bp.x + dx + w); y2 = Math.max(y2, bp.y + dy + h);
+        }
+        setInvalidBox({ x: x1 - 12, y: y1 - 12, w: x2 - x1 + 24, h: y2 - y1 + 24 });
+      } else setInvalidBox(null);
       drag.ghost.status(
         hit ? `「${titleOf(doc, hit.sid)}」에서 Branch (재앵커)`
           : invalid ? '다른 Branch와 겹쳐요 — 놓으면 원위치'
@@ -345,6 +357,7 @@ function CanvasInner({ view }: { view: string }) {
     suppressClicks();
     setCui({ shift: null, hotBracket: null, anchorTarget: null, dragSrc: null });
     setDropbar(null);
+    setInvalidBox(null);
     if (drag.kind === 'label') {
       const f = doc?.flows.find(x => x.id === drag.flowId);
       if (drag.hit && f && drag.hit.sid !== f.from) {
@@ -501,6 +514,13 @@ function CanvasInner({ view }: { view: string }) {
         {dropbar && (
           <ViewportPortal>
             <div className="dropbar" style={{ left: dropbar.x, top: dropbar.y, height: dropbar.h }} />
+          </ViewportPortal>
+        )}
+        {invalidBox && (
+          <ViewportPortal>
+            <div className="mvbox" style={{
+              left: invalidBox.x, top: invalidBox.y, width: invalidBox.w, height: invalidBox.h
+            }} />
           </ViewportPortal>
         )}
       </ReactFlow>

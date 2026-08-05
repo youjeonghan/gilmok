@@ -165,8 +165,8 @@ export function LabelNode({ id, data }: NodeProps) {
         <span ref={pillRef} style={{ position: 'relative', display: 'inline-block' }}>
           <InlineEdit
             value={f.label}
-            className={'lbl' + (d.isRootFirst ? '' : ' grab')}
-            title={d.isRootFirst ? '클릭=이름 수정' : '클릭=이름 수정 · 드래그=이동/재앵커'}
+            className="lbl grab"
+            title={d.isRootFirst ? '클릭=이름 수정 · 드래그=이동' : '클릭=이름 수정 · 드래그=이동/재앵커'}
             onSave={v => acts.renameFlow(d.flowId, v)}
           />
           <Handle type="target" position={Position.Left} id="l"

@@ -112,8 +112,8 @@ export function computeLayout(
    *  이후 형제 블록들이 함께 밀린다). */
   function layoutBlock(f: FlowLane, tab: Tab, baseLabelX: number, baseYTop: number,
     ancestors: Set<string>, isRootFirst: boolean): number {
-    // 자유 배치 오프셋 — 자동 좌표에 더해진다
-    const off = (!isRootFirst && doc.layout?.[tab.id]?.offsets?.[f.id]) || { dx: 0, dy: 0 };
+    // 자유 배치 오프셋 — 자동 좌표에 더해진다 (첫 Branch 포함)
+    const off = doc.layout?.[tab.id]?.offsets?.[f.id] || { dx: 0, dy: 0 };
     const labelX = baseLabelX + off.dx;
     const yTop = baseYTop + off.dy;
     const binfo: BlockInfo = { flowId: f.id, tabId: tab.id, nodeIds: [], flowIds: [f.id] };
@@ -128,7 +128,7 @@ export function computeLayout(
     const labelY = sceneY + THUMB_H / 2 - PILL_CENTER_Y;
     addNode({
       id: lblId, type: 'label', x: labelX, y: labelY, z: 3, // 호버 툴바가 씬 위로 뜨도록
-      draggable: !isRootFirst, selectable: false,
+      draggable: true, selectable: false,
       data: { flowId: f.id, tabId: tab.id, isRootFirst }
     });
     const scenesX0 = labelX + ld.w + LANE_AFTER_LABEL;
@@ -240,8 +240,9 @@ export function computeLayout(
         const firstLblId = `lbl:${fs[0].id}`;
         const fld = labelDim(firstLblId);
         const pw = pillW(fs[0].id);
-        const anchorX = firstLabelX + (pw != null ? pw / 2 : fld.w / 2);
-        const firstLabelY = firstSceneY + THUMB_H / 2 - PILL_CENTER_Y;
+        const foff = doc.layout?.[tab.id]?.offsets?.[fs[0].id] || { dx: 0, dy: 0 };
+        const anchorX = firstLabelX + foff.dx + (pw != null ? pw / 2 : fld.w / 2);
+        const firstLabelY = firstSceneY + foff.dy + THUMB_H / 2 - PILL_CENTER_Y;
         const anchorBottom = firstLabelY + fld.h;
         let childY = bottom + GROUP_GAP;
         let prevArmY: number | null = null;

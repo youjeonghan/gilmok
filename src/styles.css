@@ -219,8 +219,10 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
 #ghost .gs.join{color:var(--jade)}
 .dropbar{position:absolute;width:3px;border-radius:2px;background:var(--primary-600);
   pointer-events:none;z-index:6}
-/* 자유 배치 중 겹침(이동 불가) 표시 */
-.react-flow__node.mvbad{outline:2px solid #C9432C;outline-offset:3px;border-radius:10px;opacity:.85}
+/* 자유 배치 중 겹침(이동 불가) — 이동 블록 전체를 감싸는 단일 박스 */
+.mvbox{position:absolute;border:2.5px solid #C9432C;border-radius:16px;
+  background:rgba(201,67,44,.05);box-shadow:0 0 0 4px rgba(201,67,44,.12);
+  pointer-events:none;z-index:7}
 
 /* ===== 컨텍스트 메뉴 ===== */
 #ctx{position:fixed;z-index:100;background:var(--surface);border:1px solid var(--border);
