@@ -66,7 +66,7 @@ interface LabelDrag {
 }
 
 function CanvasInner({ view }: { view: string }) {
-  const { doc, ui, setUI, appTheme, server } = useStore();
+  const { doc, ui, setUI, appTheme, server, thumbVer } = useStore();
   const acts = useActions();
   const { screenToFlowPosition, fitView, setViewport, getViewport, zoomIn, zoomOut } = useReactFlow();
   const dark = appTheme === 'dark';
@@ -416,14 +416,14 @@ function CanvasInner({ view }: { view: string }) {
         const p = sc ? themePath(sc, theme) : null;
         m[n.id] = {
           kind: 'scene',
-          url: server?.canThumb && p ? thumbUrl(p, sc?.updated) : undefined
+          url: server?.canThumb && p ? thumbUrl(p, (sc?.updated || '') + '-' + thumbVer) : undefined
         };
       } else {
         m[n.id] = { kind: n.type };
       }
     }
     return m;
-  }, [layout, doc, ui.sceneTheme, ui.globalTheme, server]);
+  }, [layout, doc, ui.sceneTheme, ui.globalTheme, server, thumbVer]);
 
   const MiniNode = useCallback((p: any) => {
     const info = miniInfo[p.id];

@@ -143,24 +143,31 @@ function getThumb(rel) {
   return job;
 }
 
-/* ---------- flow.json 외부 변경 감시 (SSE) ---------- */
+/* ---------- 데이터 폴더 외부 변경 감시 (SSE) ----------
+ * flow.json → 'change' (문서 리로드) · 그 외(씬 HTML 등) → 'scenes' (썸네일만 갱신) */
 const sseClients = new Set();
-let watcher = null, watchTimer = null;
-function broadcastFlowChange() {
+let watcher = null, watchTimer = null, scenesTimer = null;
+function broadcast(type) {
   for (const res of sseClients) {
-    try { res.write('data: change\n\n'); } catch (e) {}
+    try { res.write('data: ' + type + '\n\n'); } catch (e) {}
   }
 }
 function watchDataDir() {
   if (watcher) { try { watcher.close(); } catch (e) {} watcher = null; }
   if (!dataDir) return;
-  try {
-    watcher = fs.watch(dataDir, (ev, fn) => {
-      if (fn !== 'flow.json') return;
+  const onWatch = (ev, fn) => {
+    const name = String(fn || '').replace(/\\/g, '/');
+    if (name === 'flow.json') {
       clearTimeout(watchTimer);
-      watchTimer = setTimeout(broadcastFlowChange, 150);
-    });
-  } catch (e) {}
+      watchTimer = setTimeout(() => broadcast('change'), 150);
+    } else {
+      clearTimeout(scenesTimer);
+      scenesTimer = setTimeout(() => broadcast('scenes'), 300);
+    }
+  };
+  // recursive는 win/mac 지원 — 실패 시 최상위만 감시(구 동작)
+  try { watcher = fs.watch(dataDir, { recursive: true }, onWatch); }
+  catch (e) { try { watcher = fs.watch(dataDir, onWatch); } catch (e2) {} }
 }
 
 /* ---------- 설정 (최근 프로젝트) ---------- */

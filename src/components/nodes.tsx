@@ -21,11 +21,11 @@ export function designEditUrl(designUrl: string | undefined, file: string | null
 
 /** 씬 미리보기 — 서버 모드면 PNG 썸네일, 아니면(또는 실패 시) 라이브 iframe 폴백 */
 export function ScenePreview({ file, v }: { file: string; v?: string }) {
-  const { DATA, server } = useStore();
+  const { DATA, server, thumbVer } = useStore();
   const [fail, setFail] = useState(false);
   useEffect(() => { setFail(false); }, [file]);
   if (server?.canThumb && !fail) {
-    return <img className="snap" src={thumbUrl(file, v)} loading="lazy" alt=""
+    return <img className="snap" src={thumbUrl(file, (v || '') + '-' + thumbVer)} loading="lazy" alt=""
       onError={() => setFail(true)} />;
   }
   return <iframe key={file} src={DATA + file} loading="lazy" tabIndex={-1} />;

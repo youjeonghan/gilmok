@@ -18,6 +18,8 @@ interface Store {
   /** 앱 자체 테마 (프로젝트와 무관, 전역 저장) */
   appTheme: 'light' | 'dark';
   setAppTheme: (t: 'light' | 'dark') => void;
+  /** 씬 파일 외부 변경 세대 — 썸네일 URL 캐시 버스터 */
+  thumbVer: number;
   /** 문서 변경 커밋 — 히스토리 스냅샷 + 저장. mutator는 복제본을 수정한다 */
   commit: (mutator: (d: FlowDoc) => void) => void;
   undo: () => void;
@@ -40,6 +42,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [DATA, setDATA] = useState('./');
   const [activeTab, setTab] = useState('all');
   const [ui, setUiState] = useState<UIState>({ sceneTheme: {} });
+  const [thumbVer, setThumbVer] = useState(0);
   const [appTheme, setAppThemeState] = useState<'light' | 'dark'>(() => {
     try { return (localStorage.getItem('flow-map:appTheme') as 'light' | 'dark') || 'light'; }
     catch { return 'light'; }
@@ -191,7 +194,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (phase !== 'ready' || !serverRef.current) return;
     const es = new EventSource('api/flow-events');
-    es.onmessage = async () => {
+    es.onmessage = async (ev: MessageEvent) => {
+      if (ev.data === 'scenes') { setThumbVer(v => v + 1); return; } // 씬 파일만 변경 — 썸네일 갱신
       const cur = docRef.current;
       if (!cur) return;
       try {
@@ -232,7 +236,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   return (
     <Ctx.Provider value={{
       phase, errMsg, doc, server, DATA, isServer: !!server,
-      activeTab, setActiveTab, ui, setUI, appTheme, setAppTheme,
+      activeTab, setActiveTab, ui, setUI, appTheme, setAppTheme, thumbVer,
       commit, undo, redo, resetToFile, patchServer
     }}>
       {children}
