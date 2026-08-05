@@ -16,6 +16,8 @@ export const CORNER_R = 10;         // 라운드 코너
 export const SEG_GAP = 8;           // 갈래 뿌리 사이 여백
 export const DROP_PAD = 8;          // 앵커 아래 여백
 export const LBL_ARM = TRUNK_LEN + ARROW_H + 8;  // 트렁크 X → 라벨 왼쪽 거리
+export const RHANDLE_X = 217;       // 씬 카드 오른쪽 소스 핸들 x (nodes.tsx와 일치)
+export const TRUNK_BEND_DX = 35;    // 오른쪽 트렁크: 'r' 핸들 → 세로선 x 오프셋
 export const GROUP_GAP = 26;        // 레인 → 자식 그룹 간격
 export const BLOCK_GAP = 30;        // 형제 블록 간격
 export const LANE_AFTER_LABEL = 24; // 라벨 노드 → 첫 씬 간격 (왼쪽 화살표 여백과 균형)
@@ -40,7 +42,7 @@ export interface LNode {
 }
 export interface LEdge {
   id: string;
-  type: 'harrow' | 'trunk';
+  type: 'harrow' | 'trunk' | 'rtrunk';
   source: string; sourceHandle: string;
   target: string; targetHandle: string;
   data?: any;
@@ -181,20 +183,32 @@ export function computeLayout(
       const parentNid = sceneNodeIdFor(f, i);
       const anchorX = sceneXs[i] + CARD_CENTER;
       const parentBottom = sceneY + sceneH(parentNid);
-      let prevArmY: number | null = null;
+      const cardRight = sceneXs[i] + CARD_W;
+      const rHandleY = sceneY + THUMB_H / 2;
+      let prevArmB: number | null = null;
+      let prevArmR: number | null = null;
       for (const cf of subs) {
         const cLabelX = anchorX + LBL_ARM;
         const cOff = (doc.layout?.[tab.id]?.offsets?.[cf.id]) || { dx: 0, dy: 0 };
         const cBrPad = (cf.brackets || []).length ? BRACKET_PAD : 0;
         const armY = childY + cOff.dy + cBrPad + THUMB_H / 2; // 자식 라벨 알약 중심 y (오프셋 반영)
-        edges.push({
-          id: `et:${cf.id}`, type: 'trunk',
-          source: parentNid, sourceHandle: 'b',
-          target: `lbl:${cf.id}`, targetHandle: 'l',
-          // 소스 핸들(부모 하단) 기준 상대값 — 드래그 중에도 뿌리가 라이브로 따라온다
-          data: { startDY: prevArmY == null ? DROP_PAD : prevArmY + SEG_GAP - parentBottom }
-        });
-        prevArmY = armY;
+        // 놓인 위치에 따라 뿌리 방향 자동 선택 — 라벨이 카드 오른쪽 밖이면 오른쪽에서 꺾여 나온다
+        const side = cLabelX + cOff.dx - cardRight >= 20 ? 'r' : 'b';
+        edges.push(side === 'r'
+          ? {
+              id: `et:${cf.id}`, type: 'rtrunk',
+              source: parentNid, sourceHandle: 'r',
+              target: `lbl:${cf.id}`, targetHandle: 'l',
+              data: { bendDX: TRUNK_BEND_DX, startDY: prevArmR == null ? null : prevArmR + SEG_GAP - rHandleY }
+            }
+          : {
+              id: `et:${cf.id}`, type: 'trunk',
+              source: parentNid, sourceHandle: 'b',
+              target: `lbl:${cf.id}`, targetHandle: 'l',
+              // 소스 핸들(부모 하단) 기준 상대값 — 드래그 중에도 뿌리가 라이브로 따라온다
+              data: { startDY: prevArmB == null ? DROP_PAD : prevArmB + SEG_GAP - parentBottom }
+            });
+        if (side === 'r') prevArmR = armY; else prevArmB = armY;
         const h = layoutBlock(cf, tab, cLabelX, childY, new Set([...ancestors, sid]), false);
         childY += h + BLOCK_GAP;
         grew = true;
@@ -236,25 +250,36 @@ export function computeLayout(
         target: `lbl:${fs[0].id}`, targetHandle: 'l'
       });
       bottom = Math.max(bottom, flowsY + h0);
-      // 루트에서 갈라지는 2번째+ 플로우 — 첫 Scene 카드 아래 트렁크로 앵커
-      // (라벨이 아닌 카드에서 직접 내려와 '첫 Scene의 Branch'로 읽힌다)
+      // 루트에서 갈라지는 2번째+ 플로우 — 기본은 첫 Scene 카드 '오른쪽'에서 나와 아래로 꺾이는 트렁크
+      // (본류와 같은 면에서 출발해 이어져 보인다). 블록을 카드 아래로 끌어다 놓으면 하단 트렁크로 자동 전환.
       if (fs.length > 1) {
         const rootNodeBottom = firstSceneY - RCAP_H + sceneH(rootId);
+        const rootRight = rootX + CARD_W;
+        const rHandleY = firstSceneY + THUMB_H / 2;
+        const baseLabelX = rootX + RHANDLE_X + TRUNK_BEND_DX + LBL_ARM;
         let childY = bottom + GROUP_GAP;
-        let prevArmY: number | null = null;
+        let prevArmB: number | null = null;
+        let prevArmR: number | null = null;
         fs.slice(1).forEach(cf => {
-          const cLabelX = rootX + CARD_CENTER + LBL_ARM;
           const cOff = (doc.layout?.[tab.id]?.offsets?.[cf.id]) || { dx: 0, dy: 0 };
           const cBrPad = (cf.brackets || []).length ? BRACKET_PAD : 0;
           const armY = childY + cOff.dy + cBrPad + THUMB_H / 2;
-          edges.push({
-            id: `et:${cf.id}`, type: 'trunk',
-            source: rootId, sourceHandle: 'b',
-            target: `lbl:${cf.id}`, targetHandle: 'l',
-            data: { startDY: prevArmY == null ? DROP_PAD : prevArmY + SEG_GAP - rootNodeBottom }
-          });
-          prevArmY = armY;
-          const h = layoutBlock(cf, tab, cLabelX, childY, new Set([startSid]), false);
+          const side = baseLabelX + cOff.dx - rootRight >= 20 ? 'r' : 'b';
+          edges.push(side === 'r'
+            ? {
+                id: `et:${cf.id}`, type: 'rtrunk',
+                source: rootId, sourceHandle: 'r',
+                target: `lbl:${cf.id}`, targetHandle: 'l',
+                data: { bendDX: TRUNK_BEND_DX, startDY: prevArmR == null ? null : prevArmR + SEG_GAP - rHandleY }
+              }
+            : {
+                id: `et:${cf.id}`, type: 'trunk',
+                source: rootId, sourceHandle: 'b',
+                target: `lbl:${cf.id}`, targetHandle: 'l',
+                data: { startDY: prevArmB == null ? DROP_PAD : prevArmB + SEG_GAP - rootNodeBottom }
+              });
+          if (side === 'r') prevArmR = armY; else prevArmB = armY;
+          const h = layoutBlock(cf, tab, baseLabelX, childY, new Set([startSid]), false);
           childY += h + BLOCK_GAP;
         });
         bottom = childY - BLOCK_GAP;

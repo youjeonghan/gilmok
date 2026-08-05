@@ -13,13 +13,13 @@ import {
 } from '../layout';
 import { CanvasCtx, suppressClicks, type CanvasUIState } from '../canvasui';
 import { SceneNode, LabelNode, BracketNode, SeccapNode, AddStartNode } from './nodes';
-import { HArrowEdge, TrunkEdge } from './edges';
+import { HArrowEdge, TrunkEdge, RTrunkEdge } from './edges';
 
 const nodeTypes: NodeTypes = {
   scene: SceneNode, label: LabelNode, bracket: BracketNode,
   seccap: SeccapNode, addstart: AddStartNode
 };
-const edgeTypes: EdgeTypes = { harrow: HArrowEdge, trunk: TrunkEdge };
+const edgeTypes: EdgeTypes = { harrow: HArrowEdge, trunk: TrunkEdge, rtrunk: RTrunkEdge };
 
 /* ---------- 드래그 고스트 (화면 좌표, body 직속) ---------- */
 function makeGhost(title: string) {
