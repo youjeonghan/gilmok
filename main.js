@@ -495,6 +495,17 @@ function createWindow() {
 app.setAppUserModelId('dev.youjeonghan.flowmap'); // 작업표시줄 그룹 아이덴티티 (dev에서도 자체 아이콘·제목 표시)
 
 app.whenReady().then(async () => {
+  // 패키지명 개명(flow-map → gilmok)으로 userData 경로가 바뀜 — 구 설정(최근 프로젝트·토큰) 자동 이전
+  try {
+    const cur = configPath();
+    if (!fs.existsSync(cur)) {
+      const old = path.join(path.dirname(app.getPath('userData')), 'flow-map', 'config.json');
+      if (fs.existsSync(old)) {
+        fs.mkdirSync(path.dirname(cur), { recursive: true });
+        fs.copyFileSync(old, cur);
+      }
+    }
+  } catch (e) {}
   const cfg = loadConfig();
   if (cfg.lastProject && fs.existsSync(path.join(cfg.lastProject, 'flow.json'))) {
     dataDir = cfg.lastProject;
