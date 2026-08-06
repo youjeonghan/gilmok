@@ -206,9 +206,11 @@ function CanvasInner({ view }: { view: string }) {
       (block?.flowIds ?? [d.flowId]).forEach(fid => {
         doc.flows.find(x => x.id === fid)?.seq.forEach(s => subtreeSids.add(s));
       });
-      // 첫 Branch는 재앵커 대상 없음(이동만) — from을 바꾸면 루트 구조가 깨지므로
+      // 첫 Branch는 재앵커 대상 없음(이동만) — from을 바꾸면 루트 구조가 깨지므로.
+      // 현재 앵커(f.from) 카드도 제외 — 자기 카드 근처에 놓는 건 재앵커가 아니라 자유 배치다
       const targets = d.isRootFirst ? [] : layout.nodes
-        .filter(n => n.type === 'scene' && (n.data as any).tabId === f.tab && !subtreeSids.has((n.data as any).sid))
+        .filter(n => n.type === 'scene' && (n.data as any).tabId === f.tab
+          && !subtreeSids.has((n.data as any).sid) && (n.data as any).sid !== f.from)
         .map(n => ({
           nodeId: n.id, sid: (n.data as any).sid, x: n.x, y: n.y,
           w: CARD_W, h: sizesRef.current.get(n.id)?.h ?? 196
