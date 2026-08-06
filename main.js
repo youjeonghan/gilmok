@@ -465,12 +465,20 @@ function startServer() {
     wss.on('connection', attachTermWS);
     // 고정 포트 — origin(host:port)이 바뀌면 localStorage(앱 테마·뷰포트·탭 상태)가 통째로 날아간다.
     // 재시작·업데이트에도 유지되도록 고정하고, 점유 중이면 임시 포트로 폴백(그 세션만 상태 미유지).
-    server.once('error', err => {
-      if (err && (err.code === 'EADDRINUSE' || err.code === 'EACCES')) {
-        server.listen(0, '127.0.0.1', () => resolve(server.address().port));
-      } else throw err;
+    // 핸들러는 상시 등록('on') — 폴백 중 두 번째 error가 uncaught 예외 다이얼로그로 새지 않게.
+    let resolved = false;
+    let fellBack = false;
+    const done = () => { if (!resolved) { resolved = true; resolve(server.address().port); } };
+    server.on('error', err => {
+      if (resolved) return;
+      if (!fellBack && err && (err.code === 'EADDRINUSE' || err.code === 'EACCES')) {
+        fellBack = true;
+        setImmediate(() => { try { server.listen(0, '127.0.0.1', done); } catch (e) { console.error('listen fallback 실패:', e); } });
+      } else {
+        console.error('서버 listen 오류:', err);
+      }
     });
-    server.listen(47823, '127.0.0.1', () => resolve(server.address().port));
+    server.listen(47823, '127.0.0.1', done);
   });
 }
 
@@ -493,6 +501,19 @@ function createWindow() {
 }
 
 app.setAppUserModelId('dev.youjeonghan.flowmap'); // 작업표시줄 그룹 아이덴티티 (dev에서도 자체 아이콘·제목 표시)
+
+// 단일 인스턴스 — 이미 실행 중이면 새 프로세스는 종료하고 기존 창을 앞으로 (포트 충돌 원천 차단)
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+  process.exit(0);
+}
+app.on('second-instance', () => {
+  if (win) {
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  }
+});
 
 app.whenReady().then(async () => {
   // 패키지명 개명(flow-map → gilmok)으로 userData 경로가 바뀜 — 구 설정(최근 프로젝트·토큰) 자동 이전
