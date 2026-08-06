@@ -64,9 +64,10 @@ interface LabelDrag {
   delta: { dx: number; dy: number };
   moved: boolean;
   invalid: boolean;
-  /* 부착 스냅 — 앵커 카드(트렁크 소스) 기준 아래/오른쪽 존 */
-  anchor: { x: number; top: number; bottom: number; right: number } | null;
+  /* 부착 스냅 — 커서 근처 씬 카드의 아래/오른쪽 존 (다른 카드면 재앵커+부착) */
+  zoneCards: { sid: string; x: number; top: number; bottom: number; right: number }[];
   zone: 'b' | 'r' | null;
+  zoneCard: { sid: string; x: number; top: number; bottom: number; right: number } | null;
   lastP: { x: number; y: number };
 }
 
@@ -228,23 +229,21 @@ function CanvasInner({ view }: { view: string }) {
       const statics = layout.nodes
         .filter(n => !subtree.has(n.id) && (n.type === 'scene' || n.type === 'label' || n.type === 'bracket'))
         .map(n => ({ x: n.x, y: n.y, w: estW(n), h: estH(n) }));
-      // 부착 스냅 존 — 이 Branch 트렁크의 소스 카드 기준 (첫 Branch는 스냅 없음)
-      let anchor: LabelDrag['anchor'] = null;
-      const tedge = layout.edges.find(e => e.id === `et:${d.flowId}`);
-      if (tedge) {
-        const sn = layout.nodes.find(n => n.id === tedge.source);
-        if (sn) {
-          const isRoot = !!(sn.data as any).isRoot;
-          const h = sizesRef.current.get(sn.id)?.h ?? ((isRoot ? RCAP_H : 0) + 196);
-          anchor = { x: sn.x, top: sn.y + (isRoot ? RCAP_H : 0), bottom: sn.y + h, right: sn.x + CARD_W };
-        }
-      }
+      // 부착 스냅 존 후보 — 같은 탭의 모든 씬 카드(자기 서브트리 제외, 현재 앵커 포함).
+      // 첫 Branch(isRootFirst)는 스냅 없음 — 이동만
+      const zoneCards = d.isRootFirst ? [] : layout.nodes
+        .filter(n => n.type === 'scene' && (n.data as any).tabId === f.tab && !subtreeSids.has((n.data as any).sid))
+        .map(n => {
+          const isRoot = !!(n.data as any).isRoot;
+          const h = sizesRef.current.get(n.id)?.h ?? ((isRoot ? RCAP_H : 0) + 196);
+          return { sid: (n.data as any).sid, x: n.x, top: n.y + (isRoot ? RCAP_H : 0), bottom: n.y + h, right: n.x + CARD_W };
+        });
       dragRef.current = {
         kind: 'label', flowId: d.flowId, tabId: d.tabId,
         ghost: makeGhost('Branch 「' + f.label + '」 이동'), targets, hit: null,
         origin: { ...node.position }, subtree, basePos, statics,
         delta: { dx: 0, dy: 0 }, moved: false, invalid: false,
-        anchor, zone: null, lastP: { ...node.position }
+        zoneCards, zone: null, zoneCard: null, lastP: { ...node.position }
       };
       document.body.classList.add('noselect');
     }
@@ -265,18 +264,27 @@ function CanvasInner({ view }: { view: string }) {
       }
       drag.hit = hit;
       setCui(c => (c.anchorTarget === (hit?.nodeId ?? null) ? c : { ...c, anchorTarget: hit?.nodeId ?? null }));
-      // 부착 스냅 존 판정 — 앵커 카드 바로 아래(폭 안) 또는 오른쪽 영역
+      // 부착 스냅 존 판정 — 커서에서 가장 가까운 카드의 바로 아래(폭 안) 또는 오른쪽 영역
       let zone: 'b' | 'r' | null = null;
-      if (!hit && drag.anchor) {
-        const a = drag.anchor;
-        if (p.y > a.bottom + 6 && p.y <= a.bottom + 360 && p.x >= a.x - 30 && p.x <= a.right) zone = 'b';
-        else if (p.x > a.right + 6 && p.x <= a.right + 420 && p.y >= a.top + 20 && p.y <= a.bottom + 360) zone = 'r';
+      let zoneCard: LabelDrag['zoneCard'] = null;
+      if (!hit) {
+        let best = Infinity;
+        for (const c of drag.zoneCards) {
+          const dist = Math.hypot(p.x - (c.x + c.right) / 2, p.y - (c.top + c.bottom) / 2);
+          if (dist >= best) continue;
+          if (p.y > c.bottom + 6 && p.y <= c.bottom + 240 && p.x >= c.x - 10 && p.x <= c.right + 10) {
+            zone = 'b'; zoneCard = c; best = dist;
+          } else if (p.x > c.right + 10 && p.x <= c.right + 320 && p.y >= c.top + 10 && p.y <= c.bottom + 220) {
+            zone = 'r'; zoneCard = c; best = dist;
+          }
+        }
       }
       drag.zone = zone;
-      setSnapZone(zone && drag.anchor
+      drag.zoneCard = zoneCard;
+      setSnapZone(zone && zoneCard
         ? (zone === 'b'
-          ? { x: drag.anchor.x - 30, y: drag.anchor.bottom + 6, w: CARD_W + 30, h: 354 }
-          : { x: drag.anchor.right + 6, y: drag.anchor.top, w: 414, h: (drag.anchor.bottom - drag.anchor.top) + 360 })
+          ? { x: zoneCard.x - 10, y: zoneCard.bottom + 6, w: CARD_W + 20, h: 234 }
+          : { x: zoneCard.right + 10, y: zoneCard.top, w: 310, h: (zoneCard.bottom - zoneCard.top) + 220 })
         : null);
       // 자유 배치 — 라벨의 현재 위치에서 델타 계산, 블록 전체를 함께 이동
       const dx = node.position.x - drag.origin.x;
@@ -316,9 +324,12 @@ function CanvasInner({ view }: { view: string }) {
         }
         setInvalidBox({ x: x1 - 12, y: y1 - 12, w: x2 - x1 + 24, h: y2 - y1 + 24 });
       } else setInvalidBox(null);
+      const zoneMsg = zone && zoneCard
+        ? `「${titleOf(doc, zoneCard.sid)}」 ${zone === 'b' ? '아래' : '오른쪽'}에 붙이기 — 놓으면 정렬돼요`
+        : '';
       drag.ghost.status(
         hit ? `「${titleOf(doc, hit.sid)}」에서 Branch (재앵커)`
-          : zone ? (zone === 'b' ? '카드 아래에 붙이기 — 놓으면 정렬돼요' : '카드 오른쪽에 붙이기 — 놓으면 정렬돼요')
+          : zone ? zoneMsg
             : invalid ? '다른 Branch와 겹쳐요 — 놓으면 원위치'
               : '이동 (놓아서 배치)',
         !!hit || !!zone || (!invalid && drag.moved));
@@ -398,28 +409,37 @@ function CanvasInner({ view }: { view: string }) {
       const f = doc?.flows.find(x => x.id === drag.flowId);
       if (drag.hit && f && drag.hit.sid !== f.from) {
         acts.reanchorFlow(drag.flowId, drag.hit.sid);       // Scene 위에 놓음 = 재앵커
-      } else if (drag.zone && drag.anchor) {
-        // 스냅 부착 — 방향별 정위치로 정렬, 겹치면 아래로 밀며 자동 해결
-        const a = drag.anchor;
-        const target = drag.zone === 'b'
-          ? { x: a.x + CARD_CENTER + LBL_ARM, y: Math.max(a.bottom + 30, drag.lastP.y - 12) }
-          : { x: a.x + RHANDLE_X + TRUNK_BEND_DX + LBL_ARM, y: Math.max(a.top + THUMB_H / 2 + 26, drag.lastP.y - 12) };
-        let sdx = target.x - drag.origin.x, sdy = target.y - drag.origin.y;
-        const M = 6;
-        const okAt = (ddx: number, ddy: number) => {
-          for (const [id, bp] of drag.basePos) {
-            const s = sizesRef.current.get(id);
-            const w = s?.w ?? CARD_W, h = s?.h ?? 60;
-            const x1 = bp.x + ddx, y1 = bp.y + ddy;
-            for (const r of drag.statics) {
-              if (x1 < r.x + r.w + M && x1 + w + M > r.x && y1 < r.y + r.h + M && y1 + h + M > r.y) return false;
+      } else if (drag.zone && drag.zoneCard) {
+        const zc = drag.zoneCard;
+        if (f && zc.sid !== f.from) {
+          // 다른 카드의 존에 놓음 = 재앵커 + 그 방향 정위치 부착 (오프셋 초기화)
+          acts.attachBranch(drag.flowId, drag.tabId, zc.sid, drag.zone);
+        } else {
+          // 같은 앵커 — 방향별 정위치 x로 정렬, y는 놓은 위치 존중, 겹치면 아래로 밀며 자동 해결
+          const target = drag.zone === 'b'
+            ? { x: zc.x + CARD_CENTER + LBL_ARM, y: Math.max(zc.bottom + 30, drag.lastP.y - 12) }
+            : { x: zc.x + RHANDLE_X + TRUNK_BEND_DX + LBL_ARM, y: Math.max(zc.top + THUMB_H / 2 + 26, drag.lastP.y - 12) };
+          let rdx = target.x - drag.origin.x, rdy = target.y - drag.origin.y;
+          const M = 6;
+          const okAt = (ddx: number, ddy: number) => {
+            for (const [id, bp] of drag.basePos) {
+              const s = sizesRef.current.get(id);
+              const w = s?.w ?? CARD_W, h = s?.h ?? 60;
+              const x1 = bp.x + ddx, y1 = bp.y + ddy;
+              for (const r of drag.statics) {
+                if (x1 < r.x + r.w + M && x1 + w + M > r.x && y1 < r.y + r.h + M && y1 + h + M > r.y) return false;
+              }
             }
+            return true;
+          };
+          let tries = 0;
+          while (!okAt(rdx, rdy) && tries++ < 15) rdy += 40;
+          if (tries <= 15) {
+            // 저장 오프셋: side 정위치가 베이스가 되므로 dx는 0으로 리셋 (렌더 위치는 okAt로 검증됨)
+            const curOff = doc?.layout?.[drag.tabId]?.offsets?.[drag.flowId] || { dx: 0, dy: 0 };
+            acts.moveBranch(drag.flowId, drag.tabId, -curOff.dx, rdy, drag.zone);
           }
-          return true;
-        };
-        let tries = 0;
-        while (!okAt(sdx, sdy) && tries++ < 15) sdy += 40;
-        if (tries <= 15) acts.moveBranch(drag.flowId, drag.tabId, sdx, sdy, drag.zone);
+        }
       } else if (drag.moved && !drag.invalid && !drag.hit
         && (Math.abs(drag.delta.dx) > 2 || Math.abs(drag.delta.dy) > 2)) {
         acts.moveBranch(drag.flowId, drag.tabId, drag.delta.dx, drag.delta.dy); // 자유 배치 커밋 (side 재판정)

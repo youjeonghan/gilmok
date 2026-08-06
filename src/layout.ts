@@ -188,13 +188,15 @@ export function computeLayout(
       let prevArmB: number | null = null;
       let prevArmR: number | null = null;
       for (const cf of subs) {
-        const cLabelX = anchorX + LBL_ARM;
         const cOff = (doc.layout?.[tab.id]?.offsets?.[cf.id]) || { dx: 0, dy: 0 };
         const cBrPad = (cf.brackets || []).length ? BRACKET_PAD : 0;
         const armY = childY + cOff.dy + cBrPad + THUMB_H / 2; // 자식 라벨 알약 중심 y (오프셋 반영)
         // 부착 방향 — 스냅으로 지정된 side 우선, 없으면 위치로 자동(라벨이 카드 오른쪽 밖이면 'r')
-        const side = cOff.side === 'r' || cOff.side === 'b'
-          ? cOff.side : (cLabelX + cOff.dx - cardRight >= 20 ? 'r' : 'b');
+        const explicit = cOff.side === 'r' || cOff.side === 'b' ? cOff.side : null;
+        const bottomBase = anchorX + LBL_ARM;
+        const side = explicit ?? (bottomBase + cOff.dx - cardRight >= 20 ? 'r' : 'b');
+        // 명시 'r'이면 라벨 베이스도 오른쪽 트렁크 정위치로 (오프셋 0 = 정렬된 자리)
+        const cLabelX = explicit === 'r' ? sceneXs[i] + RHANDLE_X + TRUNK_BEND_DX + LBL_ARM : bottomBase;
         edges.push(side === 'r'
           ? {
               id: `et:${cf.id}`, type: 'rtrunk',
@@ -265,8 +267,10 @@ export function computeLayout(
           const cOff = (doc.layout?.[tab.id]?.offsets?.[cf.id]) || { dx: 0, dy: 0 };
           const cBrPad = (cf.brackets || []).length ? BRACKET_PAD : 0;
           const armY = childY + cOff.dy + cBrPad + THUMB_H / 2;
-          const side = cOff.side === 'r' || cOff.side === 'b'
-            ? cOff.side : (baseLabelX + cOff.dx - rootRight >= 20 ? 'r' : 'b');
+          const explicit = cOff.side === 'r' || cOff.side === 'b' ? cOff.side : null;
+          const side = explicit ?? (baseLabelX + cOff.dx - rootRight >= 20 ? 'r' : 'b');
+          // 명시 'b'이면 라벨 베이스를 하단 트렁크 정위치로
+          const cBase = explicit === 'b' ? rootX + CARD_CENTER + LBL_ARM : baseLabelX;
           edges.push(side === 'r'
             ? {
                 id: `et:${cf.id}`, type: 'rtrunk',
@@ -281,7 +285,7 @@ export function computeLayout(
                 data: { startDY: prevArmB == null ? DROP_PAD : prevArmB + SEG_GAP - rootNodeBottom }
               });
           if (side === 'r') prevArmR = armY; else prevArmB = armY;
-          const h = layoutBlock(cf, tab, baseLabelX, childY, new Set([startSid]), false);
+          const h = layoutBlock(cf, tab, cBase, childY, new Set([startSid]), false);
           childY += h + BLOCK_GAP;
         });
         bottom = childY - BLOCK_GAP;

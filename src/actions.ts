@@ -127,6 +127,18 @@ export function useActions() {
     reanchorFlow(flowId: string, sid: string) {
       commit(d => { const f = d.flows.find(x => x.id === flowId); if (f) f.from = sid; });
     },
+    /** Branch를 특정 Scene의 아래/오른쪽 정위치로 부착 — 재앵커 + 오프셋 초기화 + 방향 저장 */
+    attachBranch(flowId: string, tabId: string, sid: string, side: 'b' | 'r') {
+      commit(d => {
+        const f = d.flows.find(x => x.id === flowId);
+        if (!f) return;
+        f.from = sid;
+        d.layout = d.layout || {};
+        const t = (d.layout[tabId] = d.layout[tabId] || { offsets: {} });
+        t.offsets = t.offsets || {};
+        t.offsets[flowId] = { dx: 0, dy: 0, side };
+      });
+    },
     /** 자유 배치 — Branch 블록 오프셋 누적 (0이 되면 엔트리 제거).
      *  side를 주면 부착 방향을 명시 저장(스냅), 안 주면 제거(자유 배치 — 위치로 자동 판정) */
     moveBranch(flowId: string, tabId: string, dx: number, dy: number, side?: 'b' | 'r' | null) {

@@ -23,8 +23,9 @@ export function HArrowEdge({ sourceX, sourceY, targetX, targetY }: EdgeProps) {
       </>
     );
   }
-  const midX = Math.min(startX + 28, (startX + endX) / 2);
-  const r = Math.min(CORNER_R, Math.abs(targetY - sourceY) / 2, Math.max(2, endX - midX));
+  // 꺾임은 라벨 쪽에서 — 카드에서 나오는 뿌리(수평 구간)는 라벨 높이와 무관하게 고정
+  const midX = Math.max(startX + 16, endX - 36);
+  const r = Math.min(CORNER_R, Math.abs(targetY - sourceY) / 2, Math.max(2, endX - midX), Math.max(2, midX - startX));
   const s = targetY > sourceY ? 1 : -1;
   const d = `M ${startX} ${sourceY} L ${midX - r} ${sourceY}`
     + ` Q ${midX} ${sourceY} ${midX} ${sourceY + s * r}`
