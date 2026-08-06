@@ -266,6 +266,14 @@ export function useActions() {
       }
       commit(d => { const dt = d.tabs.find(x => x.id === tabId); if (dt) dt.title = r.title; });
     },
+    moveTab(tabId: string, toIdx: number) {
+      commit(d => {
+        const i = d.tabs.findIndex(t => t.id === tabId);
+        if (i < 0) return;
+        const [t] = d.tabs.splice(i, 1);
+        d.tabs.splice(Math.max(0, Math.min(toIdx, d.tabs.length)), 0, t);
+      });
+    },
     async deleteTab(tabId: string, title: string) {
       if (!(await dialogs.askConfirm(`Tab 「${title}」와 그 Branch들을 삭제할까요? (Scene은 유지)`))) return false;
       commit(d => {

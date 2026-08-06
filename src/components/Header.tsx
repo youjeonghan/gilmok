@@ -44,6 +44,8 @@ export function Header() {
   const [updState, setUpdState] = useState<'idle' | 'checking' | 'downloading'>('idle');
   const [projOpen, setProjOpen] = useState(false);
   const projRef = useRef<HTMLSpanElement>(null);
+  const [dragTab, setDragTab] = useState<string | null>(null);
+  const [dropMark, setDropMark] = useState<{ id: string; after: boolean } | null>(null);
 
   useEffect(() => {
     if (!projOpen) return;
@@ -165,7 +167,7 @@ export function Header() {
             <b>보기</b>
             <ul>
               <li>· 카드 클릭 = Scene을 실물 크기로 열기</li>
-              <li>· Tab = 플로우 전환 (전체 = 모든 플로우 한눈에)</li>
+              <li>· Tab = 플로우 전환 · 선택된 Tab 클릭 = 이름 수정 · 드래그 = 순서 이동</li>
               <li>· 휠 = 이동 · Ctrl+휠 = 확대/축소 · 스페이스+드래그 = 화면 이동</li>
               <li>· 썸네일 우상단 = 테마(D/L/N) · ＋로 테마 등록</li>
             </ul>
@@ -259,10 +261,37 @@ export function Header() {
         <button className={'tab' + (activeTab === 'all' ? ' on' : '')}
           onClick={() => setActiveTab('all')}>전체</button>
         {doc.tabs.map(t => (
-          <button key={t.id} className={'tab' + (activeTab === t.id ? ' on' : '')}
-            title="더블클릭 = 이름 수정"
-            onClick={() => setActiveTab(t.id)}
-            onDoubleClick={() => acts.renameTab(t.id)}>
+          <button key={t.id}
+            className={'tab' + (activeTab === t.id ? ' on' : '')
+              + (dragTab === t.id ? ' dragsrc' : '')
+              + (dropMark?.id === t.id ? (dropMark.after ? ' drop-r' : ' drop-l') : '')}
+            title="선택된 Tab 클릭 = 이름 수정 · 드래그 = 순서 이동"
+            draggable
+            onDragStart={e => { setDragTab(t.id); e.dataTransfer.effectAllowed = 'move'; }}
+            onDragEnd={() => { setDragTab(null); setDropMark(null); }}
+            onDragOver={e => {
+              if (!dragTab || dragTab === t.id) return;
+              e.preventDefault();
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              const after = e.clientX > r.left + r.width / 2;
+              setDropMark(m => (m?.id === t.id && m.after === after ? m : { id: t.id, after }));
+            }}
+            onDragLeave={() => setDropMark(m => (m?.id === t.id ? null : m))}
+            onDrop={e => {
+              e.preventDefault();
+              if (!dragTab || dragTab === t.id) return;
+              const fromIdx = doc.tabs.findIndex(x => x.id === dragTab);
+              const idx = doc.tabs.findIndex(x => x.id === t.id);
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              let to = idx + (e.clientX > r.left + r.width / 2 ? 1 : 0);
+              if (fromIdx >= 0 && fromIdx < to) to--;
+              acts.moveTab(dragTab, to);
+              setDragTab(null); setDropMark(null);
+            }}
+            onClick={() => {
+              if (activeTab === t.id) acts.renameTab(t.id); // 이미 선택된 탭 = 이름 수정
+              else setActiveTab(t.id);
+            }}>
             {t.title}
             <span className="tx" title="Tab 삭제" onClick={async e => {
               e.stopPropagation();

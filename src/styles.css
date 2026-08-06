@@ -74,6 +74,10 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
   color:var(--mist);cursor:pointer;border-bottom:2.5px solid transparent}
 #tabs .tab.on{color:var(--primary-600);border-bottom-color:var(--primary-600)}
 #tabs .tab.add{font-weight:600;color:var(--text-dim)}
+/* 탭 드래그 순서 이동 */
+#tabs .tab.dragsrc{opacity:.45}
+#tabs .tab.drop-l{box-shadow:inset 3px 0 0 var(--primary-600)}
+#tabs .tab.drop-r{box-shadow:inset -3px 0 0 var(--primary-600)}
 /* ✕ 자리를 미리 확보(visibility) — hover 시 옆 탭이 밀리지 않는다 */
 #tabs .tab .tx{display:inline-block;visibility:hidden;color:#C9432C;margin-left:7px;font-weight:800;
   font-size:12px;width:12px}
