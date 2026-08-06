@@ -583,7 +583,7 @@ function CanvasInner({ view }: { view: string }) {
         fitViewOptions={{ padding: 0.08, maxZoom: 1 }}
         onMoveEnd={onMoveEnd}
         minZoom={0.12}
-        maxZoom={2}
+        maxZoom={4}
         panOnScroll
         panOnDrag={false}
         panActivationKeyCode="Space"

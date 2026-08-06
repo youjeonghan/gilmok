@@ -93,7 +93,7 @@ function attachTermWS(ws) {
 /* ---------- 씬 PNG 썸네일 (카드·미니맵·삽입 프리뷰용 실사 축소판) ----------
  * 오프스크린 창으로 씬 HTML을 렌더 → capturePage → 640px PNG로 캐시.
  * 캐시 키 = 경로 해시 + mtime → 씬 파일이 바뀌면 자동 재생성. */
-const THUMB_W = 640;
+const THUMB_W = 960; // 캔버스 최대 줌 4x에서도 선명하게
 const thumbDir = () => path.join(app.getPath('userData'), 'thumbs');
 let thumbWin = null;
 let thumbChain = Promise.resolve();
@@ -122,7 +122,7 @@ function getThumb(rel) {
   const abs = path.normalize(path.join(base, rel));
   if (!abs.startsWith(base)) return Promise.reject(new Error('bad path'));
   const st = fs.statSync(abs);
-  const out = path.join(thumbDir(), thumbKey(rel) + '-' + Math.round(st.mtimeMs) + '.png');
+  const out = path.join(thumbDir(), thumbKey(rel) + '-' + Math.round(st.mtimeMs) + '-w' + THUMB_W + '.png'); // 폭이 바뀌면 캐시 재생성
   if (fs.existsSync(out)) return Promise.resolve(out);
   const job = thumbChain.then(() => {
     if (fs.existsSync(out)) return out;
