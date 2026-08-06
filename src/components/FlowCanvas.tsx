@@ -84,6 +84,28 @@ function CanvasInner({ view }: { view: string }) {
     return () => { delete (window as any).__flowmapRF; };
   }, [fitView, setViewport, getViewport, zoomIn, zoomOut]);
 
+  // 스페이스 팬 중에는 카드·노트가 클릭되지 않게 (CSS pointer-events 차단)
+  const [spacePan, setSpacePan] = useState(false);
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      const t = e.target as HTMLElement | null;
+      if (t && /INPUT|TEXTAREA|SELECT/.test(t.tagName)) return;
+      if (document.querySelector('dialog[open]')) return;
+      setSpacePan(true);
+    };
+    const up = (e: KeyboardEvent) => { if (e.code === 'Space') setSpacePan(false); };
+    const blur = () => setSpacePan(false);
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    window.addEventListener('blur', blur);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', blur);
+    };
+  }, []);
+
   /* ---- 실측 크기 수집 ---- */
   const sizesRef = useRef(new Map<string, { w: number; h: number }>());
   const pillRef = useRef(new Map<string, number>());
@@ -564,6 +586,7 @@ function CanvasInner({ view }: { view: string }) {
       bracketPreview: null, setBracketPreview: () => {}
     }}>
       <ReactFlow
+        className={spacePan ? 'space-pan' : undefined}
         nodes={rfNodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
