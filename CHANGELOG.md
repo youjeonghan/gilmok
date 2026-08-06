@@ -1,4 +1,4 @@
-# 길목(flow-map) 버전 기록
+# 길목 버전 기록
 
 릴리스는 git 태그(`vX.Y.Z`)로 관리 — 태그 푸시 시 GitHub Actions가 OS별 설치 파일을 빌드해 Release에 첨부한다.
 
@@ -21,6 +21,7 @@
 - **카드 위 드롭 방향 판정** — Branch 라벨을 다른 Scene 카드 위에 놓을 때 카드 가운데점 기준으로 아래/오른쪽을 판정해 초록 스트립으로 미리 보여주고, 놓으면 그 방향 정위치에 재앵커+부착
 - **Tab 드래그 순서 이동 · 클릭 이름 수정** — 탭을 드래그해 순서 변경(드롭 위치 표시), 선택된 탭을 다시 클릭하면 이름 수정 ('전체'·'＋ Tab'·갤러리는 고정)
 - 저장소 개명 `flow-map` → `gilmok` + public 전환, LICENSE(MIT)
+- **이름 통일 완료** — 설치 파일(`gilmok-setup-*.exe`)·mac(`gilmok-*.dmg`)·Go 서버(`gilmok-server-*`)·패키지명·User-Agent·콘솔 출력·문서·스킬까지 flow-map 잔재를 전부 길목/gilmok으로. localStorage 키도 `gilmok:`으로 이전(구 `flow-map:` 키 자동 마이그레이션 — 테마·뷰포트 유지). 데이터 폴더명은 자유(기존 `flow-map/` 폴더 그대로 동작)
 
 ## v0.7.6 — 2026-08-05
 

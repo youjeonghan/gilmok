@@ -1,5 +1,5 @@
 {
-  "name": "flow-map",
+  "name": "gilmok",
   "version": "0.7.7",
   "description": "길목 — 분기 라인 위 씬 프리뷰로 서비스 흐름을 조망·편집",
   "main": "main.js",
@@ -48,14 +48,14 @@
     },
     "nsis": {
       "oneClick": true,
-      "artifactName": "flow-map-setup-${version}.exe"
+      "artifactName": "gilmok-setup-${version}.exe"
     },
     "mac": {
       "target": [
         "dmg",
         "zip"
       ],
-      "artifactName": "flow-map-${version}-${arch}.${ext}"
+      "artifactName": "gilmok-${version}-${arch}.${ext}"
     }
   },
   "allowScripts": {

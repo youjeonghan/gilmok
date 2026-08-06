@@ -19,7 +19,7 @@ jobs:
       - run: npx electron-builder --win --publish never
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/flow-map-setup-*.exe
+          files: dist/gilmok-setup-*.exe
 
   electron-mac:
     runs-on: macos-latest
@@ -35,8 +35,8 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/flow-map-*.dmg
-            dist/flow-map-*.zip
+            dist/gilmok-*.dmg
+            dist/gilmok-*.zip
 
   go-server:
     runs-on: ubuntu-latest
@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir -p dist
           go build -trimpath -ldflags "-s -w" \
-            -o "dist/flow-map-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}" .
+            -o "dist/gilmok-server-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}" .
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*

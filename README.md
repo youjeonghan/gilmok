@@ -6,7 +6,7 @@
 
 **서비스 흐름을 분기 라인 위 Scene 프리뷰로 조망·편집하는 데스크톱 앱**
 
-흐름이 갈라지는 "길목"을 내려다보는 도구 · 저장소는 `gilmok`, 실행파일명은 `flow-map`
+흐름이 갈라지는 "길목"을 내려다보는 도구 · 저장소 `gilmok` · 설치 파일 `gilmok-setup-*.exe`
 
 ![version](https://img.shields.io/badge/version-0.7.x-E8563C) ![platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS-1F6E63) ![stack](https://img.shields.io/badge/Electron%20%2B%20React%20Flow-TypeScript-20282A)
 
@@ -47,8 +47,9 @@
 ## 설치
 
 1. [Releases](https://github.com/youjeonghan/gilmok/releases)에서 설치 파일 다운로드
-   - Windows: `flow-map-setup-<버전>.exe` (SmartScreen 경고 시 '추가 정보 → 실행')
-   - mac: `flow-map-<버전>-arm64.dmg` (Gatekeeper 차단 시 시스템 설정 → 개인정보 보호 및 보안에서 허용)
+   - Windows: `gilmok-setup-<버전>.exe` (SmartScreen 경고 시 '추가 정보 → 실행')
+   - mac: `gilmok-<버전>-arm64.dmg` (Gatekeeper 차단 시 시스템 설정 → 개인정보 보호 및 보안에서 허용)
+   - 구버전 파일명(`flow-map-setup-*`)은 v0.7.7 이전 릴리스 — 업데이트 확인은 그대로 동작
 2. 실행 → **📂 프로젝트**로 `flow.json`이 있는 데이터 폴더 선택 (마지막 프로젝트 기억)
 3. 편집은 자동 저장. 업데이트는 **⟳ 업데이트 확인** 버튼
 
@@ -68,16 +69,16 @@ npm run dist               # 로컬 인스톨러 빌드
 
 ### Go 서버 (헤드리스/폴백)
 
-`main.go` — 뷰어를 내장한 단일 바이너리 서버. 릴리스의 `flow-map-server-*`.
+`main.go` — 뷰어를 내장한 단일 바이너리 서버. 릴리스의 `gilmok-server-*`.
 
 ```
-flow-map-server <데이터폴더>   # 브라우저로 열림, flow.json 자동 저장
+gilmok-server <데이터폴더>   # 브라우저로 열림, flow.json 자동 저장
 ```
 
 ## 데이터 폴더 규약
 
 ```
-<project>/flow-map/
+<project>/gilmok/        # 폴더명은 자유 — 기존 flow-map/ 폴더도 그대로 동작
   flow.json     # 플로우 정본 — 아래 스키마
   scenes/…      # Scene HTML (self-contained). claude.ai/design 미러라면 scenes/<원격경로>
 ```

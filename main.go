@@ -1,5 +1,5 @@
-// flow-map — 씬 플로우 맵 로컬 서버 (단일 바이너리)
-// 사용: flow-map [데이터폴더]   (데이터폴더 생략 시 현재 폴더)
+// 길목(gilmok) — 씬 플로우 맵 로컬 서버 (단일 바이너리)
+// 사용: gilmok-server [데이터폴더]   (데이터폴더 생략 시 현재 폴더)
 package main
 
 import (
@@ -30,7 +30,7 @@ func main() {
 	showVersion := flag.Bool("version", false, "버전 출력")
 	flag.Parse()
 	if *showVersion {
-		fmt.Println("flow-map v" + version)
+		fmt.Println("길목 v" + version)
 		return
 	}
 
@@ -101,7 +101,7 @@ func main() {
 
 	addr := fmt.Sprintf("127.0.0.1:%d", *port)
 	url := "http://" + addr + "/"
-	fmt.Printf("flow-map v%s\n  데이터: %s\n  주소:   %s\n", version, absData, url)
+	fmt.Printf("길목 v%s\n  데이터: %s\n  주소:   %s\n", version, absData, url)
 	if !*noOpen {
 		openBrowser(url)
 	}

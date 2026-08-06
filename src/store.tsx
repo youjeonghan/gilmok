@@ -44,14 +44,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [ui, setUiState] = useState<UIState>({ sceneTheme: {} });
   const [thumbVer, setThumbVer] = useState(0);
   const [appTheme, setAppThemeState] = useState<'light' | 'dark'>(() => {
-    try { return (localStorage.getItem('flow-map:appTheme') as 'light' | 'dark') || 'light'; }
-    catch { return 'light'; }
+    try {
+      // 구 'flow-map:' 키 폴백 (개명 마이그레이션)
+      return ((localStorage.getItem('gilmok:appTheme') || localStorage.getItem('flow-map:appTheme')) as 'light' | 'dark') || 'light';
+    } catch { return 'light'; }
   });
   useEffect(() => {
     document.documentElement.dataset.theme = appTheme;
   }, [appTheme]);
   const setAppTheme = useCallback((t: 'light' | 'dark') => {
-    try { localStorage.setItem('flow-map:appTheme', t); } catch {}
+    try { localStorage.setItem('gilmok:appTheme', t); } catch {}
     setAppThemeState(t);
   }, []);
 
@@ -139,8 +141,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const params = new URLSearchParams(location.search);
       const srv = await fetchHealth();
       const data = ((params.get('data') || (srv ? 'data/' : './')).replace(/\/?$/, '/'));
-      const LS = 'flow-map:' + ((srv && srv.projectKey) ? srv.projectKey : data);
+      const projKey = (srv && srv.projectKey) ? srv.projectKey : data;
+      const LS = 'gilmok:' + projKey;
       keys.current = { LS, LS_TAB: LS + ':tab', LS_UI: LS + ':ui' };
+      // 구 'flow-map:' 키 마이그레이션 — 프로젝트별 편집본·탭·뷰포트 유지
+      try {
+        const oldLS = 'flow-map:' + projKey;
+        for (const [nk, ok] of [[LS, oldLS], [LS + ':tab', oldLS + ':tab'], [LS + ':ui', oldLS + ':ui']] as const) {
+          if (localStorage.getItem(nk) == null) {
+            const v = localStorage.getItem(ok);
+            if (v != null) localStorage.setItem(nk, v);
+          }
+        }
+      } catch {}
       setServer(srv); serverRef.current = srv;
       setDATA(data); dataRef.current = data;
       setTab(localStorage.getItem(keys.current.LS_TAB) || 'all');

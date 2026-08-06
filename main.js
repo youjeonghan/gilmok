@@ -1,4 +1,4 @@
-// flow-map — Electron 메인 프로세스
+// 길목(gilmok) — Electron 메인 프로세스
 // 내부 HTTP 서버(127.0.0.1 전용)가 뷰어와 데이터 폴더를 서빙한다 (Go 서버와 동일 API + Electron 확장).
 const { app, BrowserWindow, dialog, shell } = require('electron');
 const http = require('http');
@@ -245,13 +245,13 @@ function ghToken() {
 }
 function ghRequest(url, token, accept) {
   return new Promise((resolve, reject) => {
-    const headers = { 'User-Agent': 'flow-map', Accept: accept || 'application/vnd.github+json' };
+    const headers = { 'User-Agent': 'gilmok', Accept: accept || 'application/vnd.github+json' };
     if (token) headers.Authorization = 'Bearer ' + token;
     https.get(url, { headers }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
         // 리다이렉트(S3)에는 Authorization을 보내지 않는다
-        https.get(res.headers.location, { headers: { 'User-Agent': 'flow-map' } }, r2 => resolve(r2))
+        https.get(res.headers.location, { headers: { 'User-Agent': 'gilmok' } }, r2 => resolve(r2))
           .on('error', reject);
         return;
       }
@@ -502,7 +502,7 @@ app.whenReady().then(async () => {
   watchDataDir();
   const port = await startServer();
   baseURL = `http://127.0.0.1:${port}/`;
-  console.log('flow-map v' + VERSION + ' → ' + baseURL + (dataDir ? ' (데이터: ' + dataDir + ')' : ' (프로젝트 미선택)'));
+  console.log('길목 v' + VERSION + ' → ' + baseURL + (dataDir ? ' (데이터: ' + dataDir + ')' : ' (프로젝트 미선택)'));
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

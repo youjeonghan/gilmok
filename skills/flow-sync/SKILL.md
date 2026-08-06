@@ -1,6 +1,6 @@
 ---
 name: flow-sync
-description: flow-map 씬 동기화 — claude.ai/design 디자인 시스템(원격 정본)과 로컬 scenes/ 미러·flow.json(씬 갤러리)을 맞춘다. 신규/변경/삭제 감지, @meta updated 스탬프, 미제작 자리표시자 ↔ 신규 원격 씬 매칭. 사용자가 "씬 싱크", "flow sync", "씬 갤러리 맞춰줘"라고 하면 실행.
+description: 길목(구 flow-map) 씬 동기화 — claude.ai/design 디자인 시스템(원격 정본)과 로컬 scenes/ 미러·flow.json(씬 갤러리)을 맞춘다. 신규/변경/삭제 감지, @meta updated 스탬프, 미제작 자리표시자 ↔ 신규 원격 씬 매칭. 사용자가 "씬 싱크", "flow sync", "씬 갤러리 맞춰줘"라고 하면 실행.
 ---
 
 # flow-sync — 씬 동기화 절차
@@ -9,7 +9,7 @@ description: flow-map 씬 동기화 — claude.ai/design 디자인 시스템(원
 
 ## 0. 대상 결정
 
-- 데이터 폴더: ① 사용자가 지정한 폴더 → ② 현재 레포에서 `flow.json`을 가진 flow-map 데이터 폴더 탐색(`**/flow-map/flow.json`; 하나면 그것, 여럿이면 사용자에게 질문).
+- 데이터 폴더: ① 사용자가 지정한 폴더 → ② 현재 레포에서 `flow.json`을 가진 길목 데이터 폴더 탐색(`**/{gilmok,flow-map}/flow.json`; 하나면 그것, 여럿이면 사용자에게 질문).
 - `flow.json` 읽기. 클로드 디자인 프로젝트 ID는 `service.designUrl`의 `/p/<uuid>`에서 추출. **designUrl이 없으면** `DesignSync list_projects`로 프로젝트 목록을 받아 서비스 이름(`service.name`)과 맞는 것을 사용자에게 확인받아 선택하고, 진행 전에 `service.designUrl`을 `https://claude.ai/design/p/<uuid>`로 채워 기록한다. 사용자가 클로드 디자인을 안 쓴다고 하면 동기화 대상이 아님을 안내하고 종료.
 
 ## 1. 원격 목록 조회
@@ -38,7 +38,7 @@ description: flow-map 씬 동기화 — claude.ai/design 디자인 시스템(원
 ## 4. 보고 & 마무리
 
 - 요약 보고: 신규 N / 변경 N / 원격 삭제 N / 자리표시자 연결 N + flow.json 변경 내역.
-- 사용자에게 안내: 뷰어 새로고침. **flow-map 바이너리(서버 모드)로 열려 있으면 자동 저장과 충돌하지 않게 새로고침만 하면 되고**, 정적 서버 모드에서 확정 안 한 localStorage 편집이 있으면 먼저 '내보내기'로 확정하거나 '편집 초기화' 후 새로고침.
+- 사용자에게 안내: 뷰어 새로고침. **길목 앱(서버 모드)으로 열려 있으면 자동 저장과 충돌하지 않게 새로고침만 하면 되고**, 정적 서버 모드에서 확정 안 한 localStorage 편집이 있으면 먼저 '내보내기'로 확정하거나 '편집 초기화' 후 새로고침.
 - 프로젝트에 로그 관례가 있으면(예: second-brain 볼트 log.md) 한 줄 기록.
 
 ## (역방향) push가 필요한 경우
