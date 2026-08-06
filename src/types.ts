@@ -41,7 +41,8 @@ export interface FlowLane {
 /** 자유 배치 — Branch(플로우)별 오프셋. 자동 배치 좌표에 더해지며,
  *  해당 블록 '뒤'(레이아웃 순서상 이후)의 블록들도 함께 밀린다. 의미 구조와 분리. */
 export interface TabLayout {
-  offsets: Record<string, { dx: number; dy: number }>; // key = flow id
+  // key = flow id. side = 부착 방향(스냅으로 지정 시 저장 — 'b' 카드 하단 / 'r' 카드 오른쪽, 없으면 위치로 자동 판정)
+  offsets: Record<string, { dx: number; dy: number; side?: 'b' | 'r' }>;
 }
 
 export interface FlowDoc {

@@ -239,6 +239,9 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
 #ghost .gs.join{color:var(--jade)}
 .dropbar{position:absolute;width:3px;border-radius:2px;background:var(--primary-600);
   pointer-events:none;z-index:6}
+/* 부착 스냅 존 — 드래그 중 놓으면 붙는 영역 하이라이트 */
+.snapzone{position:absolute;border:2.5px dashed var(--jade, #1F6E63);border-radius:18px;
+  background:rgba(31,110,99,.07);pointer-events:none;z-index:6}
 /* 자유 배치 중 겹침(이동 불가) — 이동 블록 전체를 감싸는 단일 박스 */
 .mvbox{position:absolute;border:2.5px solid #C9432C;border-radius:16px;
   background:rgba(201,67,44,.05);box-shadow:0 0 0 4px rgba(201,67,44,.12);

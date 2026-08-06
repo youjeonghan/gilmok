@@ -192,8 +192,9 @@ export function computeLayout(
         const cOff = (doc.layout?.[tab.id]?.offsets?.[cf.id]) || { dx: 0, dy: 0 };
         const cBrPad = (cf.brackets || []).length ? BRACKET_PAD : 0;
         const armY = childY + cOff.dy + cBrPad + THUMB_H / 2; // 자식 라벨 알약 중심 y (오프셋 반영)
-        // 놓인 위치에 따라 뿌리 방향 자동 선택 — 라벨이 카드 오른쪽 밖이면 오른쪽에서 꺾여 나온다
-        const side = cLabelX + cOff.dx - cardRight >= 20 ? 'r' : 'b';
+        // 부착 방향 — 스냅으로 지정된 side 우선, 없으면 위치로 자동(라벨이 카드 오른쪽 밖이면 'r')
+        const side = cOff.side === 'r' || cOff.side === 'b'
+          ? cOff.side : (cLabelX + cOff.dx - cardRight >= 20 ? 'r' : 'b');
         edges.push(side === 'r'
           ? {
               id: `et:${cf.id}`, type: 'rtrunk',
@@ -264,7 +265,8 @@ export function computeLayout(
           const cOff = (doc.layout?.[tab.id]?.offsets?.[cf.id]) || { dx: 0, dy: 0 };
           const cBrPad = (cf.brackets || []).length ? BRACKET_PAD : 0;
           const armY = childY + cOff.dy + cBrPad + THUMB_H / 2;
-          const side = baseLabelX + cOff.dx - rootRight >= 20 ? 'r' : 'b';
+          const side = cOff.side === 'r' || cOff.side === 'b'
+            ? cOff.side : (baseLabelX + cOff.dx - rootRight >= 20 ? 'r' : 'b');
           edges.push(side === 'r'
             ? {
                 id: `et:${cf.id}`, type: 'rtrunk',

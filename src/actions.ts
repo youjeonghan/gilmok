@@ -127,16 +127,17 @@ export function useActions() {
     reanchorFlow(flowId: string, sid: string) {
       commit(d => { const f = d.flows.find(x => x.id === flowId); if (f) f.from = sid; });
     },
-    /** 자유 배치 — Branch 블록 오프셋 누적 (0이 되면 엔트리 제거) */
-    moveBranch(flowId: string, tabId: string, dx: number, dy: number) {
+    /** 자유 배치 — Branch 블록 오프셋 누적 (0이 되면 엔트리 제거).
+     *  side를 주면 부착 방향을 명시 저장(스냅), 안 주면 제거(자유 배치 — 위치로 자동 판정) */
+    moveBranch(flowId: string, tabId: string, dx: number, dy: number, side?: 'b' | 'r' | null) {
       commit(d => {
         d.layout = d.layout || {};
         const t = (d.layout[tabId] = d.layout[tabId] || { offsets: {} });
         t.offsets = t.offsets || {};
         const o = t.offsets[flowId] || { dx: 0, dy: 0 };
         const nx = Math.round(o.dx + dx), ny = Math.round(o.dy + dy);
-        if (!nx && !ny) delete t.offsets[flowId];
-        else t.offsets[flowId] = { dx: nx, dy: ny };
+        if (!nx && !ny && !side) delete t.offsets[flowId];
+        else t.offsets[flowId] = side ? { dx: nx, dy: ny, side } : { dx: nx, dy: ny };
       });
     },
     /* ---- 범주 ---- */
