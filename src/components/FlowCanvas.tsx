@@ -56,6 +56,7 @@ interface LabelDrag {
   ghost: Ghost;
   targets: { nodeId: string; sid: string; x: number; y: number; w: number; h: number }[];
   hit: { nodeId: string; sid: string } | null;
+  hitSide: 'b' | 'r' | null;
   /* 자유 배치 (블록 통째 이동) */
   origin: { x: number; y: number };
   subtree: Set<string>;
@@ -240,7 +241,7 @@ function CanvasInner({ view }: { view: string }) {
         });
       dragRef.current = {
         kind: 'label', flowId: d.flowId, tabId: d.tabId,
-        ghost: makeGhost('Branch 「' + f.label + '」 이동'), targets, hit: null,
+        ghost: makeGhost('Branch 「' + f.label + '」 이동'), targets, hit: null, hitSide: null,
         origin: { ...node.position }, subtree, basePos, statics,
         delta: { dx: 0, dy: 0 }, moved: false, invalid: false,
         zoneCards, zone: null, zoneCard: null, lastP: { ...node.position }
@@ -257,12 +258,21 @@ function CanvasInner({ view }: { view: string }) {
 
     if (drag.kind === 'label') {
       drag.lastP = { x: p.x, y: p.y };
-      // 재앵커 대상 히트 (Scene 위)
+      // 재앵커 대상 히트 (Scene 위) — 카드 가운데점 기준으로 아래/오른쪽 부착 방향 판정
       let hit: LabelDrag['hit'] = null;
+      let hitSide: 'b' | 'r' | null = null;
+      let hitRect: { x: number; y: number; w: number; h: number } | null = null;
       for (const t of drag.targets) {
-        if (p.x >= t.x && p.x <= t.x + t.w && p.y >= t.y && p.y <= t.y + t.h) { hit = t; break; }
+        if (p.x >= t.x && p.x <= t.x + t.w && p.y >= t.y && p.y <= t.y + t.h) {
+          hit = t; hitRect = t;
+          const dxn = (p.x - (t.x + t.w / 2)) / (t.w / 2);
+          const dyn = (p.y - (t.y + t.h / 2)) / (t.h / 2);
+          hitSide = dxn > dyn ? 'r' : 'b';
+          break;
+        }
       }
       drag.hit = hit;
+      drag.hitSide = hitSide;
       setCui(c => (c.anchorTarget === (hit?.nodeId ?? null) ? c : { ...c, anchorTarget: hit?.nodeId ?? null }));
       // 부착 스냅 존 판정 — 커서에서 가장 가까운 카드의 바로 아래(폭 안) 또는 오른쪽 영역
       let zone: 'b' | 'r' | null = null;
@@ -281,11 +291,16 @@ function CanvasInner({ view }: { view: string }) {
       }
       drag.zone = zone;
       drag.zoneCard = zoneCard;
-      setSnapZone(zone && zoneCard
-        ? (zone === 'b'
-          ? { x: zoneCard.x - 10, y: zoneCard.bottom + 6, w: CARD_W + 20, h: 234 }
-          : { x: zoneCard.right + 10, y: zoneCard.top, w: 310, h: (zoneCard.bottom - zoneCard.top) + 220 })
-        : null);
+      setSnapZone(hit && hitRect
+        // 카드 위 호버 — 놓으면 붙을 방향을 카드 가장자리 스트립으로 미리보기
+        ? (hitSide === 'r'
+          ? { x: hitRect.x + hitRect.w + 4, y: hitRect.y, w: 56, h: hitRect.h }
+          : { x: hitRect.x, y: hitRect.y + hitRect.h + 4, w: hitRect.w, h: 56 })
+        : zone && zoneCard
+          ? (zone === 'b'
+            ? { x: zoneCard.x - 10, y: zoneCard.bottom + 6, w: CARD_W + 20, h: 234 }
+            : { x: zoneCard.right + 10, y: zoneCard.top, w: 310, h: (zoneCard.bottom - zoneCard.top) + 220 })
+          : null);
       // 자유 배치 — 라벨의 현재 위치에서 델타 계산, 블록 전체를 함께 이동
       const dx = node.position.x - drag.origin.x;
       const dy = node.position.y - drag.origin.y;
@@ -328,7 +343,7 @@ function CanvasInner({ view }: { view: string }) {
         ? `「${titleOf(doc, zoneCard.sid)}」 ${zone === 'b' ? '아래' : '오른쪽'}에 붙이기 — 놓으면 정렬돼요`
         : '';
       drag.ghost.status(
-        hit ? `「${titleOf(doc, hit.sid)}」에서 Branch (재앵커)`
+        hit ? `「${titleOf(doc, hit.sid)}」 ${hitSide === 'r' ? '오른쪽' : '아래'}에 Branch (재앵커)`
           : zone ? zoneMsg
             : invalid ? '다른 Branch와 겹쳐요 — 놓으면 원위치'
               : '이동 (놓아서 배치)',
@@ -408,7 +423,8 @@ function CanvasInner({ view }: { view: string }) {
     if (drag.kind === 'label') {
       const f = doc?.flows.find(x => x.id === drag.flowId);
       if (drag.hit && f && drag.hit.sid !== f.from) {
-        acts.reanchorFlow(drag.flowId, drag.hit.sid);       // Scene 위에 놓음 = 재앵커
+        // Scene 위에 놓음 = 재앵커 + 가운데점 기준 판정된 방향의 정위치에 부착
+        acts.attachBranch(drag.flowId, drag.tabId, drag.hit.sid, drag.hitSide || 'b');
       } else if (drag.zone && drag.zoneCard) {
         const zc = drag.zoneCard;
         if (f && zc.sid !== f.from) {

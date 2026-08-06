@@ -67,13 +67,29 @@ export function RTrunkEdge({ sourceX, sourceY, targetX, targetY, data }: EdgePro
   const y = targetY;
   const tX = targetX - PILL_GAP;
   const endX = tX - ARROW_H;
-  const s = y >= sourceY ? 1 : -1;
   let path;
+  let hy = y; // 화살촉 높이
   if (d.startDY == null) {
-    const r = Math.min(CORNER_R, Math.max(2, Math.abs(y - sourceY) / 2));
-    path = `M ${sourceX + 12} ${sourceY} L ${x - r} ${sourceY}`
-      + ` Q ${x} ${sourceY} ${x} ${sourceY + s * r}`
-      + ` L ${x} ${y - s * r} Q ${x} ${y} ${x + r} ${y} L ${endX} ${y}`;
+    const dy = y - sourceY;
+    if (Math.abs(dy) < 6) {
+      // 사실상 일직선 — 뿌리 높이(소스)로 고정해 그린다 (라벨이 몇 px 오르내려도 선은 흔들리지 않음)
+      hy = sourceY;
+      path = `M ${sourceX + 12} ${sourceY} L ${endX} ${sourceY}`;
+    } else if (Math.abs(dy) < 26) {
+      // 거의 일직선 — 뿌리는 고정, 보정 꺾임은 라벨 직전에서 (harrow와 같은 규칙)
+      const midX = Math.max(sourceX + 24, endX - 36);
+      const s = dy > 0 ? 1 : -1;
+      const r = Math.min(CORNER_R, Math.abs(dy) / 2, Math.max(2, endX - midX), Math.max(2, midX - sourceX - 12));
+      path = `M ${sourceX + 12} ${sourceY} L ${midX - r} ${sourceY}`
+        + ` Q ${midX} ${sourceY} ${midX} ${sourceY + s * r}`
+        + ` L ${midX} ${y - s * r} Q ${midX} ${y} ${midX + r} ${y} L ${endX} ${y}`;
+    } else {
+      const s = dy > 0 ? 1 : -1;
+      const r = CORNER_R;
+      path = `M ${sourceX + 12} ${sourceY} L ${x - r} ${sourceY}`
+        + ` Q ${x} ${sourceY} ${x} ${sourceY + s * r}`
+        + ` L ${x} ${y - s * r} Q ${x} ${y} ${x + r} ${y} L ${endX} ${y}`;
+    }
   } else {
     const sy = sourceY + d.startDY;
     const r = Math.min(CORNER_R, Math.max(0, y - sy));
@@ -82,7 +98,7 @@ export function RTrunkEdge({ sourceX, sourceY, targetX, targetY, data }: EdgePro
   return (
     <>
       <path d={path} fill="none" stroke={STROKE} strokeWidth={3} strokeLinecap="round" />
-      <path d={`M ${endX} ${y - 5.5} L ${tX} ${y} L ${endX} ${y + 5.5} Z`} fill={STROKE} />
+      <path d={`M ${endX} ${hy - 5.5} L ${tX} ${hy} L ${endX} ${hy + 5.5} Z`} fill={STROKE} />
     </>
   );
 }
