@@ -53,7 +53,7 @@
 2. 실행 → **📂 프로젝트**로 `flow.json`이 있는 데이터 폴더 선택 (마지막 프로젝트 기억)
 3. 편집은 자동 저장. 업데이트는 **⟳ 업데이트 확인** 버튼
 
-> 자세한 사용법은 **[문서](docs/README.md)** 참고 — [시작하기](docs/getting-started.md) · [사용법](docs/usage.md) · [flow.json 스펙](docs/flow-json.md) · [Claude Code 연동](docs/claude-code.md) · [FAQ](docs/faq.md)
+> 자세한 사용법은 **[Wiki](https://github.com/youjeonghan/gilmok/wiki)** 참고 — [시작하기](https://github.com/youjeonghan/gilmok/wiki/시작하기) · [사용법](https://github.com/youjeonghan/gilmok/wiki/사용법) · [flow.json 스펙](https://github.com/youjeonghan/gilmok/wiki/flow.json-스펙) · [Claude Code 연동](https://github.com/youjeonghan/gilmok/wiki/Claude-Code-연동) · [FAQ](https://github.com/youjeonghan/gilmok/wiki/FAQ) (원본: [docs/](docs/README.md))
 
 ## 개발 실행
 

@@ -1,6 +1,6 @@
 # 길목 문서
 
-> private 저장소라 GitHub Wiki 대신 `docs/`에 둔 문서 모음. 저장소를 공개하면 그대로 Wiki로 옮길 수 있다.
+> 문서 원본. 같은 내용이 [GitHub Wiki](https://github.com/youjeonghan/gilmok/wiki)에 올라가 있다 — 여기(`docs/`)를 고치면 Wiki에도 반영할 것.
 
 | 문서 | 내용 |
 |---|---|
