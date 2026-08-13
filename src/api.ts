@@ -27,6 +27,19 @@ export const useFolder = async (dir: string): Promise<{ ok: boolean; dataDir?: s
     body: JSON.stringify({ dir })
   })).json();
 
+export type ProjectRef = { dir: string; name: string };
+
+/** 최근 목록(존재 검증됨) + 디스크에서 발견된 flow.json 프로젝트. Go 서버 등 미지원 환경은 null */
+export const discoverProjects = async (): Promise<{ ok: boolean; recent: ProjectRef[]; found: ProjectRef[] } | null> => {
+  try {
+    const r = await fetch('api/discover', { method: 'POST' });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+};
+
 export const newProject = async (name: string): Promise<{ ok: boolean; dataDir?: string; error?: string }> =>
   (await fetch('api/new-project', {
     method: 'POST',

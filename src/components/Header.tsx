@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { useActions } from '../actions';
 import { useDialogs } from '../dialogs';
-import { pickFolder, installSkill, newProject, updateCheck, updateDownload, openFolder, useFolder } from '../api';
+import { pickFolder, installSkill, newProject, updateCheck, updateDownload, openFolder, useFolder, discoverProjects } from '../api';
+import type { ProjectRef } from '../api';
 
 /** 경로 뒤 두 세그먼트만 표시 (전체는 title로) */
 const shortPath = (p: string) =>
@@ -21,7 +22,7 @@ function PanelIcon({ open }: { open: boolean }) {
   );
 }
 
-const VER = '0.7.10'; // 서버 미응답 시 폴백 표기 — 실제 버전은 server.version
+const VER = '0.7.12'; // 서버 미응답 시 폴백 표기 — 실제 버전은 server.version
 const APP_NAME = '길목'; // 저장소 gilmok · 설치 파일 gilmok-setup — 이름 전부 길목/gilmok으로 통일
 
 /** 앱 로고 — 씬 카드 두 장을 ㄴ자 커넥터로 잇는 글리프 */
@@ -44,6 +45,9 @@ export function Header() {
   const [updState, setUpdState] = useState<'idle' | 'checking' | 'downloading'>('idle');
   const [projOpen, setProjOpen] = useState(false);
   const projRef = useRef<HTMLSpanElement>(null);
+  // 메뉴를 열 때마다 fresh 조회 — 최근(존재 검증) + 디스크에서 발견된 프로젝트
+  const [disc, setDisc] = useState<{ recent: ProjectRef[]; found: ProjectRef[] } | null>(null);
+  const [discBusy, setDiscBusy] = useState(false);
   const [dragTab, setDragTab] = useState<string | null>(null);
   const [dropMark, setDropMark] = useState<{ id: string; after: boolean } | null>(null);
 
@@ -192,7 +196,14 @@ export function Header() {
         {isServer && (
           <span className="projwrap" ref={projRef}>
             <button className={projOpen ? 'on' : ''} title="현재 폴더 확인 · 열기 · 전환"
-              onClick={() => setProjOpen(o => !o)}>📂 프로젝트</button>
+              onClick={() => {
+                const next = !projOpen;
+                setProjOpen(next);
+                if (next) {
+                  setDiscBusy(true);
+                  discoverProjects().then(d => { setDisc(d && d.ok ? d : null); setDiscBusy(false); });
+                }
+              }}>📂 프로젝트</button>
             {projOpen && (
               <div className="projmenu">
                 <div className="pm-cur" title={(server?.dataDir || '') + ' — 클릭하면 탐색기로 열기'}
@@ -201,14 +212,38 @@ export function Header() {
                   <span className="pm-path">{shortPath(server?.dataDir || '')}</span>
                   <span className="pm-act">탐색기 ↗</span>
                 </div>
-                {(server?.recent || []).filter(p => p !== server?.dataDir).map(p => (
-                  <div key={p} className="pm-item" title={p + ' — 이 프로젝트로 전환'}
-                    onClick={async () => {
-                      const r = await useFolder(p);
-                      if (r.ok) location.reload();
-                      else await dialogs.askInfo('전환 실패 — 폴더에 flow.json이 없어요.\n' + p);
-                    }}>{shortPath(p)}</div>
-                ))}
+                {(() => {
+                  // discover 응답이 오기 전(또는 미지원 서버)엔 health의 recent로 폴백
+                  const recent: ProjectRef[] = disc
+                    ? disc.recent
+                    : (server?.recent || []).filter(p => p !== server?.dataDir).map(p => ({ dir: p, name: '' }));
+                  const goTo = async (dir: string) => {
+                    const r = await useFolder(dir);
+                    if (r.ok) location.reload();
+                    else await dialogs.askInfo('전환 실패 — 폴더에 flow.json이 없어요.\n' + dir);
+                  };
+                  return (
+                    <>
+                      {recent.length > 0 && <div className="pm-label">최근</div>}
+                      {recent.map(r => (
+                        <div key={r.dir} className="pm-item" title={r.dir + ' — 이 프로젝트로 전환'}
+                          onClick={() => goTo(r.dir)}>{shortPath(r.dir)}</div>
+                      ))}
+                      {discBusy && <div className="pm-label">디스크 검색 중…</div>}
+                      {disc && disc.found.length > 0 && (
+                        <>
+                          <div className="pm-label">디스크에서 발견</div>
+                          {disc.found.map(f => (
+                            <div key={f.dir} className="pm-item pm-found" title={f.dir + ' — 이 프로젝트로 전환'}
+                              onClick={() => goTo(f.dir)}>
+                              {f.name}<span className="pm-sub">{shortPath(f.dir)}</span>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
                 <div className="pm-sep" />
                 <div className="pm-item pm-pick" onClick={async () => {
                   setProjOpen(false);

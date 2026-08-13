@@ -2,6 +2,11 @@
 
 릴리스는 git 태그(`vX.Y.Z`)로 관리 — 태그 푸시 시 GitHub Actions가 OS별 설치 파일을 빌드해 Release에 첨부한다.
 
+## v0.7.12 — 2026-08-13
+
+- **프로젝트 자동 탐색** — 📂 프로젝트 메뉴에 「디스크에서 발견」 섹션 추가. macOS는 Spotlight(`mdfind`), 그 외는 홈 디렉터리 제한 스캔(깊이 5, node_modules·숨김폴더 제외)으로 `flow.json` 프로젝트 폴더를 찾아 서비스 이름과 함께 제안 (60초 캐시, flow.json 스키마 검증으로 오탐 제거)
+- **최근 목록 개선** — 메뉴를 열 때마다 최근 프로젝트를 서버에서 fresh 조회(기존엔 앱 시작 시점 스냅샷). 폴더가 삭제된 항목은 자동 제외
+
 ## v0.7.11 — 2026-08-13
 
 - **macOS 실행 즉시 크래시 수정** — macOS 26(Tahoe)에서 앱이 창도 못 띄우고 SIGTRAP으로 즉사하던 문제. 원인은 zip/DMG 안의 한글 파일명(`길목.app`·`길목 Helper.app` 등)이 NFD(자모 분해형)로 저장돼 Electron 헬퍼 프로세스 스폰이 실패하는 것. `productName`을 ASCII `Gilmok`으로 바꿔 실행파일·헬퍼 이름에서 한글을 제거해 원천 차단 (같은 바이너리를 파일명만 NFC로 바꾸면 정상 실행됨을 실험으로 확인). 표시 이름은 그대로 '길목' — macOS는 `CFBundleDisplayName`, Windows 바로가기는 `nsis.shortcutName`

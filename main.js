@@ -184,6 +184,59 @@ function saveConfig(c) {
   } catch (e) {}
 }
 
+/* ---------- 프로젝트 탐색 — 디스크에서 flow.json 폴더 찾기 ---------- */
+// 프로젝트 단위는 폴더, flow.json은 그 폴더를 식별하는 마커.
+// macOS는 Spotlight(mdfind)로 즉시, 그 외/실패 시는 홈 디렉터리 제한 스캔.
+let discoverCache = null; // { at, dirs } — 스캔 결과 60초 캐시
+const SCAN_SKIP = new Set(['node_modules', 'Library', 'AppData', 'Applications',
+  'Pictures', 'Movies', 'Music', 'OneDrive']);
+
+/** flow.json 폴더 검증 — 파싱되고 tabs·scenes 구조여야 길목 프로젝트로 인정 */
+function readProject(dir) {
+  try {
+    const fp = path.join(dir, 'flow.json');
+    const doc = JSON.parse(fs.readFileSync(fp, 'utf8'));
+    if (!doc || !Array.isArray(doc.tabs) || typeof doc.scenes !== 'object') return null;
+    return {
+      dir,
+      name: (doc.service && doc.service.name) || path.basename(dir),
+      mtime: fs.statSync(fp).mtimeMs
+    };
+  } catch (e) { return null; }
+}
+
+const mdfindProjects = () => new Promise(resolve => {
+  execFile('mdfind', ['kMDItemFSName == "flow.json"'],
+    { timeout: 5000, maxBuffer: 4 * 1024 * 1024 },
+    (err, out) => resolve(err ? null : String(out).split('\n').filter(Boolean).map(p => path.dirname(p))));
+});
+
+function scanProjects(root, maxDepth) {
+  const found = [];
+  const walk = (dir, depth) => {
+    let ents;
+    try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
+    if (ents.some(e => e.isFile() && e.name === 'flow.json')) { found.push(dir); return; }
+    if (depth >= maxDepth) return;
+    for (const e of ents) {
+      if (!e.isDirectory()) continue; // 심볼릭 링크는 isDirectory()=false — 순환 방지
+      if (e.name.startsWith('.') || SCAN_SKIP.has(e.name)) continue;
+      walk(path.join(dir, e.name), depth + 1);
+    }
+  };
+  walk(root, 0);
+  return found;
+}
+
+async function discoverProjects() {
+  if (!discoverCache || Date.now() - discoverCache.at > 60000) {
+    let dirs = process.platform === 'darwin' ? await mdfindProjects() : null;
+    if (!dirs) dirs = scanProjects(app.getPath('home'), 6);
+    discoverCache = { at: Date.now(), dirs };
+  }
+  return discoverCache.dirs;
+}
+
 /* ---------- 유틸 ---------- */
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',
@@ -369,6 +422,23 @@ function startServer() {
           saveConfig(cfg);
           watchDataDir();
           return sendJSON(res, { ok: true, dataDir });
+        }
+        if (u.startsWith('/api/discover')) { // 최근 목록 검증 + 디스크에서 flow.json 프로젝트 탐색
+          if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
+          const recent = (loadConfig().recent || [])
+            .filter(p => p !== dataDir).map(readProject).filter(Boolean);
+          const seen = new Set([dataDir, ...recent.map(r => r.dir)]);
+          const found = [];
+          for (const d of await discoverProjects()) {
+            const dir = path.resolve(d);
+            if (seen.has(dir) || /[\\/](node_modules|\.Trash)[\\/]/.test(dir)) continue;
+            seen.add(dir);
+            const p = readProject(dir);
+            if (p) found.push(p);
+            if (found.length >= 20) break;
+          }
+          found.sort((a, b) => b.mtime - a.mtime);
+          return sendJSON(res, { ok: true, recent, found });
         }
         if (u.startsWith('/api/new-project')) { // 위치 선택 → <위치>/<이름>/에 flow.json 스캐폴드
           if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
