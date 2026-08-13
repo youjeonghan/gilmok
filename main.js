@@ -358,6 +358,7 @@ function startServer() {
       const u = req.url || '/';
       try {
         if (u.startsWith('/api/health')) {
+          const cfg = loadConfig();
           return sendJSON(res, {
             version: VERSION,
             appName: APP_NAME,
@@ -365,7 +366,8 @@ function startServer() {
             projectKey: dataDir || '(none)',
             skillInstalled: dataDir ? skillInstalled(dataDir) : false,
             needProject: !dataDir,
-            recent: loadConfig().recent || [],
+            recent: cfg.recent || [],
+            appTheme: cfg.appTheme || '',
             canPick: true,
             canUpdate: true,
             canTerm: !!ptyMod,
@@ -422,6 +424,17 @@ function startServer() {
           saveConfig(cfg);
           watchDataDir();
           return sendJSON(res, { ok: true, dataDir });
+        }
+        if (u.startsWith('/api/app-theme')) { // 앱 테마를 config.json에 영속 — localStorage는 origin(포트) 종속이라 초기화됨
+          if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
+          const body = await readBody(req);
+          let t = '';
+          try { t = JSON.parse(body.toString()).appTheme || ''; } catch (e) { /* ignore */ }
+          if (t !== 'light' && t !== 'dark') return sendJSON(res, { ok: false });
+          const cfg = loadConfig();
+          cfg.appTheme = t;
+          saveConfig(cfg);
+          return sendJSON(res, { ok: true });
         }
         if (u.startsWith('/api/discover')) { // 최근 목록 검증 + 디스크에서 flow.json 프로젝트 탐색
           if (req.method !== 'POST') { res.writeHead(405); return res.end(); }

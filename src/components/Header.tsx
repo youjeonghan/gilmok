@@ -22,7 +22,7 @@ function PanelIcon({ open }: { open: boolean }) {
   );
 }
 
-const VER = '0.7.12'; // 서버 미응답 시 폴백 표기 — 실제 버전은 server.version
+const VER = '0.7.13'; // 서버 미응답 시 폴백 표기 — 실제 버전은 server.version
 const APP_NAME = '길목'; // 저장소 gilmok · 설치 파일 gilmok-setup — 이름 전부 길목/gilmok으로 통일
 
 /** 앱 로고 — 씬 카드 두 장을 ㄴ자 커넥터로 잇는 글리프 */
@@ -76,8 +76,9 @@ export function Header() {
   const openSettings = async () => {
     const r = await dialogs.ask('설정', [
       {
-        key: 'appTheme', label: '앱 테마', type: 'select', value: appTheme,
-        options: [{ label: '라이트', value: 'light' }, { label: '다크', value: 'dark' }]
+        key: 'appTheme', label: '앱 테마', type: 'segment', value: appTheme,
+        options: [{ label: '☀️ 라이트', value: 'light' }, { label: '🌙 다크', value: 'dark' }],
+        onPick: v => { if (v === 'light' || v === 'dark') setAppTheme(v); } // 클릭 즉시 적용
       },
       { key: 'name', label: '프로젝트 이름', value: s.name || '' },
       {

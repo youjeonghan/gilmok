@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { FlowDoc, ServerInfo, UIState, normalize } from './types';
-import { fetchHealth, postFlow } from './api';
+import { fetchHealth, postFlow, saveAppTheme } from './api';
 
 export type AppPhase = 'loading' | 'ready' | 'needProject' | 'loaderr';
 
@@ -55,6 +55,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const setAppTheme = useCallback((t: 'light' | 'dark') => {
     try { localStorage.setItem('gilmok:appTheme', t); } catch {}
     setAppThemeState(t);
+    if (serverRef.current) saveAppTheme(t); // config.json이 정본 — 재설치·포트 폴백에도 유지
   }, []);
 
   const keys = useRef({ LS: '', LS_TAB: '', LS_UI: '' });
@@ -155,6 +156,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       } catch {}
       setServer(srv); serverRef.current = srv;
+      // 앱 테마는 config.json이 정본 — localStorage(origin 종속)는 미러. 서버에 값이 없으면 현재 값 이전
+      if (srv?.appTheme === 'light' || srv?.appTheme === 'dark') {
+        try { localStorage.setItem('gilmok:appTheme', srv.appTheme); } catch {}
+        setAppThemeState(srv.appTheme as 'light' | 'dark');
+      } else if (srv) {
+        saveAppTheme(appTheme);
+      }
       setDATA(data); dataRef.current = data;
       setTab(localStorage.getItem(keys.current.LS_TAB) || 'all');
       try {

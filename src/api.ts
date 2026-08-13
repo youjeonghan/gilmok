@@ -29,6 +29,15 @@ export const useFolder = async (dir: string): Promise<{ ok: boolean; dataDir?: s
 
 export type ProjectRef = { dir: string; name: string };
 
+/** 앱 테마를 config.json에 영속 (fire-and-forget) — Go 서버 등 미지원 환경은 조용히 무시 */
+export const saveAppTheme = (t: 'light' | 'dark') => {
+  fetch('api/app-theme', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appTheme: t })
+  }).catch(() => {});
+};
+
 /** 최근 목록(존재 검증됨) + 디스크에서 발견된 flow.json 프로젝트. Go 서버 등 미지원 환경은 null */
 export const discoverProjects = async (): Promise<{ ok: boolean; recent: ProjectRef[]; found: ProjectRef[] } | null> => {
   try {

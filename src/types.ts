@@ -62,6 +62,7 @@ export interface ServerInfo {
   skillInstalled: boolean;
   needProject: boolean;
   recent?: string[];
+  appTheme?: string;
   canPick: boolean;
   canUpdate: boolean;
   canTerm?: boolean;

@@ -8,10 +8,11 @@ export interface AskField {
   label?: string;
   placeholder?: string;
   value?: string;
-  type?: 'text' | 'select' | 'file';
+  type?: 'text' | 'select' | 'segment' | 'file';
   options?: { label: string; value: string }[];
   accept?: string;
   showWhen?: { key: string; value: string };
+  onPick?: (v: string) => void; // segment 클릭 시 즉시 호출 (라이브 적용용)
 }
 export interface NoteCtx { title: string; value: string; onSave: (v: string) => void }
 export interface PickBoundary { label: string; bracketIdx: number }
@@ -46,7 +47,7 @@ function AskDialog({ st, close }: { st: AskState | null; close: () => void }) {
   useEffect(() => {
     if (st) {
       const init: Record<string, string> = {};
-      st.fields.forEach(f => { init[f.key] = f.value || (f.type === 'select' ? (f.options?.[0]?.value ?? '') : ''); });
+      st.fields.forEach(f => { init[f.key] = f.value || (f.type === 'select' || f.type === 'segment' ? (f.options?.[0]?.value ?? '') : ''); });
       setVals(init);
       files.current = {};
       ref.current?.showModal();
@@ -79,7 +80,16 @@ function AskDialog({ st, close }: { st: AskState | null; close: () => void }) {
           return (
             <div key={f.key}>
               {f.label && <label>{f.label}</label>}
-              {f.type === 'select' ? (
+              {f.type === 'segment' ? (
+                <div className="seg">
+                  {(f.options || []).map(o => (
+                    <button key={o.value} type="button" className={vals[f.key] === o.value ? 'on' : ''}
+                      onClick={() => { setVals(v => ({ ...v, [f.key]: o.value })); f.onPick?.(o.value); }}>
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              ) : f.type === 'select' ? (
                 <select value={vals[f.key] || ''} onChange={e => setVals(v => ({ ...v, [f.key]: e.target.value }))}>
                   {(f.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
