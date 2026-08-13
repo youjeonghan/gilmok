@@ -2,6 +2,10 @@
 
 릴리스는 git 태그(`vX.Y.Z`)로 관리 — 태그 푸시 시 GitHub Actions가 OS별 설치 파일을 빌드해 Release에 첨부한다.
 
+## v0.7.11 — 2026-08-13
+
+- **macOS 실행 즉시 크래시 수정** — macOS 26(Tahoe)에서 앱이 창도 못 띄우고 SIGTRAP으로 즉사하던 문제. 원인은 zip/DMG 안의 한글 파일명(`길목.app`·`길목 Helper.app` 등)이 NFD(자모 분해형)로 저장돼 Electron 헬퍼 프로세스 스폰이 실패하는 것. `productName`을 ASCII `Gilmok`으로 바꿔 실행파일·헬퍼 이름에서 한글을 제거해 원천 차단 (같은 바이너리를 파일명만 NFC로 바꾸면 정상 실행됨을 실험으로 확인). 표시 이름은 그대로 '길목' — macOS는 `CFBundleDisplayName`, Windows 바로가기는 `nsis.shortcutName`
+
 ## v0.7.10 — 2026-08-06
 
 - **스페이스 팬 오클릭 방지** — 스페이스+드래그로 화면 이동 중에는 씬 카드·Add note·버튼이 클릭되지 않는다
