@@ -33,6 +33,7 @@
 - **⌨ 내장 Claude Code 터미널** — 데이터 폴더에서 `claude` CLI를 바로 실행(로컬 로그인·구독 그대로, API 키 불필요). AI가 flow.json을 고치면 캔버스에 즉시 반영
 - **📂 프로젝트 메뉴** — 현재 폴더 확인·탐색기 열기·최근 프로젝트 전환·다른 폴더 선택을 버튼 하나로
 - **Scene 갤러리** — 그룹(카테고리)별 썸네일 카탈로그
+- **캡처 씬** — 타 서비스 화면 캡처(이미지)를 `captures/`에 두고 `kind: "capture"`로 등록하면 HTML 씬과 똑같이 플로우에 배치. 자체 화면이 나오면 `file`만 바꿔 교체
 - **claude.ai/design 연동(선택)** — Scene별 편집 딥링크, 디자인 시스템 바로가기, flow-sync 스킬 설치
 - **⟳ 앱 내 업데이트 확인** — 새 릴리스 확인 후 설치 파일 수동 업데이트(서명/공증 불필요 구조)
 
@@ -81,6 +82,7 @@ gilmok-server <데이터폴더>   # 브라우저로 열림, flow.json 자동 저
 <project>/gilmok/        # 폴더명은 자유 — 기존 flow-map/ 폴더도 그대로 동작
   flow.json     # 플로우 정본 — 아래 스키마
   scenes/…      # Scene HTML (self-contained). claude.ai/design 미러라면 scenes/<원격경로>
+  captures/…    # 가져온 화면(타 서비스 캡처 등) 이미지. NN.jpg 번호는 추가 순서 (플로우 순서 아님)
 ```
 
 ## flow.json 스키마
@@ -93,7 +95,8 @@ gilmok-server <데이터폴더>   # 브라우저로 열림, flow.json 자동 저
   "tabs":   [ { "id", "title", "start" } ],          // Tab = 독립 플로우, start = 루트 Scene id (null = ＋카드)
   "scenes": { "<id>": {
       "title",                                        // 표시 이름 (id는 제목 슬러그로 자동 발급, UI 비노출)
-      "file",                                         // default 테마 Scene 경로 · null = 미제작
+      "file",                                         // default 테마 Scene 경로 · null = 미제작 · HTML 또는 이미지(png/jpg/webp/gif)
+      "kind",                                         // design(내가 만든 씬) · capture(가져온 화면 — 📷 배지, 딥링크 없음)
       "themes": { "dark": "…" },                      // 테마별 대체 Scene
       "group",                                        // (선택) 카테고리 — 갤러리 그룹·디자인 시스템 그룹
       "updated", "note" } },

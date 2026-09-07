@@ -3,10 +3,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react';
 import { useStore } from '../store';
 import { useActions } from '../actions';
-import { titleOf, themePath, thumbUrl } from '../types';
+import { titleOf, themePath, thumbUrl, isImageFile, flowsFrom } from '../types';
+import { useViewer, ViewerReq } from './Viewer';
 import { useCanvasUI, clickSuppressed } from '../canvasui';
 import { InlineEdit } from './InlineEdit';
-import { CARD_W, THUMB_H, RCAP_H, CARD_CENTER } from '../layout';
+import { CARD_W, THUMB_H, RCAP_H, CARD_CENTER, RHANDLE_X } from '../layout';
 
 const HIDDEN_HANDLE: React.CSSProperties = {
   opacity: 0, pointerEvents: 'none', width: 1, height: 1,
@@ -19,11 +20,14 @@ export function designEditUrl(designUrl: string | undefined, file: string | null
   return designUrl + (designUrl.includes('?') ? '&' : '?') + 'file=' + encodeURIComponent(remote);
 }
 
-/** 씬 미리보기 — 서버 모드면 PNG 썸네일, 아니면(또는 실패 시) 라이브 iframe 폴백 */
+/** 씬 미리보기 — 이미지 파일이면 그대로 <img>, HTML은 서버 모드면 PNG 썸네일, 아니면(또는 실패 시) 라이브 iframe 폴백 */
 export function ScenePreview({ file, v }: { file: string; v?: string }) {
   const { DATA, server, thumbVer } = useStore();
   const [fail, setFail] = useState(false);
   useEffect(() => { setFail(false); }, [file]);
+  if (isImageFile(file)) {
+    return <img className="snap img" src={DATA + file + (v ? '?v=' + encodeURIComponent(v) : '')} loading="lazy" alt="" />;
+  }
   if (server?.canThumb && !fail) {
     return <img className="snap" src={thumbUrl(file, (v || '') + '-' + thumbVer)} loading="lazy" alt=""
       onError={() => setFail(true)} />;
@@ -32,21 +36,38 @@ export function ScenePreview({ file, v }: { file: string; v?: string }) {
 }
 
 /* ---------- 씬 카드 본체 (RF 노드와 갤러리에서 공용) ---------- */
-export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas }: {
+export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }: {
   sid: string;
   flowId: string | null;
   idx: number;
   tabId: string | null;
   isRoot?: boolean;
   inCanvas?: boolean;
+  /** 뷰어 넘김 순서를 여는 쪽이 지정할 때 (갤러리 = 그룹 순서). 없으면 소속 Branch seq / 루트 + 첫 Branch */
+  nav?: ViewerReq;
 }) {
-  const { doc, DATA, ui, setUI } = useStore();
+  const { doc, ui, setUI } = useStore();
   const acts = useActions();
+  const viewer = useViewer();
   if (!doc) return null;
-  const sc = doc.scenes[sid] || { title: sid, file: null, themes: {} as Record<string, string> };
+  /* 뷰어 순서 — 그 라인에 한정 */
+  const navFor = (): ViewerReq => {
+    if (nav) return nav;
+    if (flowId) {
+      const f = doc.flows.find(x => x.id === flowId);
+      if (f) return { seq: f.seq, index: idx, label: f.label };
+    }
+    if (isRoot && tabId) {
+      const f = flowsFrom(doc, sid, tabId)[0];
+      if (f) return { seq: [sid, ...f.seq], index: 0, label: f.label };
+    }
+    return { seq: [sid], index: 0, label: '' };
+  };
+  const sc = doc.scenes[sid] || { title: sid, file: null, kind: 'design' as const, themes: {} as Record<string, string> };
   const theme = ui.sceneTheme[sid] || ui.globalTheme || 'default';
   const path = themePath(sc as any, theme);
-  const du = designEditUrl(doc.service?.designUrl, sc.file);
+  // 가져온 화면(capture)·이미지 파일은 클로드 디자인 딥링크 대상이 아니다
+  const du = sc.kind === 'capture' || isImageFile(sc.file) ? null : designEditUrl(doc.service?.designUrl, sc.file);
 
   const themeNames = ['default', 'light', 'dark',
     ...Object.keys(sc.themes || {}).filter(t => t !== 'light' && t !== 'dark'), '+'];
@@ -54,10 +75,10 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas }: {
   return (
     <>
       <div className={'thumb' + (path ? ' click' : ' empty')}
-        title={path ? '클릭=열기 · 드래그=이동' : undefined}
+        title={path ? '클릭=뷰어로 열기 (‹ › 로 라인 넘김) · 드래그=이동' : undefined}
         onClick={() => {
           if (clickSuppressed()) return;
-          if (path) window.open(DATA + path, '_blank');
+          viewer.open(navFor());
         }}>
         {path
           ? <ScenePreview file={path} v={sc.updated} />
@@ -87,6 +108,7 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas }: {
         {/* id·수정일은 카드에 노출하지 않고 제목 툴팁으로만 (텍스트 다이어트) */}
         <b title={sid + (sc.updated ? ' · ' + sc.updated : '')}>{titleOf(doc, sid)}</b>
         {sc.group && <span className="grp nodrag" title="클로드 디자인 카테고리 (@dsCard group)">{sc.group}</span>}
+        {sc.kind === 'capture' && <span className="kind nodrag" title="가져온 화면 (kind: capture) — 자체 씬으로 교체 예정">📷 캡처</span>}
       </div>
       {sc.note
         ? <div className="snote nodrag" title="노트 편집"
@@ -140,7 +162,7 @@ export function SceneNode({ id, data }: NodeProps) {
       <Handle type="source" position={Position.Bottom} id="b"
         style={{ ...HIDDEN_HANDLE, left: CARD_CENTER, bottom: 0 }} />
       <Handle type="source" position={Position.Right} id="r"
-        style={{ ...HIDDEN_HANDLE, left: 217, top: (d.isRoot ? RCAP_H : 0) + THUMB_H / 2 }} />
+        style={{ ...HIDDEN_HANDLE, left: RHANDLE_X, top: (d.isRoot ? RCAP_H : 0) + THUMB_H / 2 }} />
       <Handle type="target" position={Position.Left} id="l"
         style={{ ...HIDDEN_HANDLE, left: 5, top: (d.isRoot ? RCAP_H : 0) + THUMB_H / 2 }} />
     </div>

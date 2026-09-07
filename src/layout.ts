@@ -4,11 +4,11 @@
 import { FlowDoc, FlowLane, Tab, flowsFrom } from './types';
 
 /* ---- 배치 상수 (v6 시각 메트릭) ---- */
-export const CARD_W = 222;          // 씬 카드 너비
+export const CARD_W = 300;          // 씬 카드 너비 (styles.css .scene/.thumb/.gutter와 함께 바꿀 것)
 export const GUTTER = 34;           // 카드 사이 간격(삽입 존 포함)
 export const PITCH = CARD_W + GUTTER;
-export const THUMB_H = 132;
-export const CARD_CENTER = 111;     // 카드 중심 X (핸들 위치와 일치해야 함)
+export const THUMB_H = 260;         // 썸네일 높이 — 세로 캡처와 16:10 HTML 썸네일이 모두 contain으로 통째 보이는 크기
+export const CARD_CENTER = CARD_W / 2;  // 카드 중심 X (핸들 위치와 일치해야 함)
 export const BRACKET_PAD = 52;      // 범주 있을 때 씬 위 여백
 export const TRUNK_LEN = 44;        // 트렁크 가로 갈래 길이
 export const ARROW_H = 9;           // 화살촉 길이
@@ -16,7 +16,7 @@ export const CORNER_R = 10;         // 라운드 코너
 export const SEG_GAP = 8;           // 갈래 뿌리 사이 여백
 export const DROP_PAD = 8;          // 앵커 아래 여백
 export const LBL_ARM = TRUNK_LEN + ARROW_H + 8;  // 트렁크 X → 라벨 왼쪽 거리
-export const RHANDLE_X = 217;       // 씬 카드 오른쪽 소스 핸들 x (nodes.tsx와 일치)
+export const RHANDLE_X = CARD_W - 5; // 씬 카드 오른쪽 소스 핸들 x (nodes.tsx와 일치)
 export const TRUNK_BEND_DX = 35;    // 오른쪽 트렁크: 'r' 핸들 → 세로선 x 오프셋
 export const GROUP_GAP = 26;        // 레인 → 자식 그룹 간격
 export const BLOCK_GAP = 30;        // 형제 블록 간격
@@ -25,7 +25,7 @@ export const ROOT_TO_LABEL = 82;    // 루트 카드 오른쪽 → 첫 라벨 (�
 export const RCAP_H = 22;           // '첫 씬' 캡션 높이
 export const SEC_GAP = 70;          // 전체 탭 섹션 간격
 export const CAP_H = 34;            // 섹션 캡션 높이
-export const DEFAULT_SCENE_H = 196;
+export const DEFAULT_SCENE_H = THUMB_H + 64;  // 실측 전 씬 노드 높이 추정 (썸네일 + 캡션·배지)
 export const DEFAULT_LABEL_W = 92;
 export const DEFAULT_LABEL_H = 24;
 export const PILL_CENTER_Y = 12;    // 라벨 노드 안 알약 중심 y

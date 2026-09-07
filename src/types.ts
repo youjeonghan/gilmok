@@ -1,4 +1,5 @@
-/* flow.json 스키마 (v3) — 의미 구조는 v6과 동일, layout은 자유 배치용 확장(선택) */
+/* flow.json 스키마 (v3) — 의미 구조는 v6과 동일, layout은 자유 배치용 확장(선택).
+   kind는 v0.7.14에서 추가 — 없던 문서는 normalize가 'design'으로 보정한다 */
 
 export interface Service {
   name: string;
@@ -14,7 +15,8 @@ export interface Tab {
 
 export interface Scene {
   title: string;
-  file: string | null;
+  file: string | null;            // HTML 또는 이미지(png/jpg/webp/gif) 경로 · null = 미제작
+  kind: 'design' | 'capture';    // design = 내가 만든 씬(기본) · capture = 가져온 화면(타 서비스 캡처 등)
   themes: Record<string, string>;
   group?: string;
   updated?: string;
@@ -92,9 +94,14 @@ export function normalize(d: any): FlowDoc {
   Object.values(d.scenes as Record<string, Scene>).forEach(s => {
     s.themes = s.themes || {};
     s.note = s.note || '';
+    s.kind = s.kind === 'capture' ? 'capture' : 'design'; // 구 문서 보정 — 다음 저장 때 파일에 기록됨
   });
   return d as FlowDoc;
 }
+
+/** 이미지 씬 여부 — 확장자로 판별. 렌더링 경로(썸네일 캡처 대신 <img>)만 결정하며 kind와는 별개 축 */
+export const isImageFile = (f: string | null | undefined): boolean =>
+  !!f && /\.(png|jpe?g|webp|gif)$/i.test(f);
 
 export const titleOf = (doc: FlowDoc, id: string) =>
   (doc.scenes[id] && doc.scenes[id].title) || id;

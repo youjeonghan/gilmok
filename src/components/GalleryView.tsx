@@ -2,6 +2,7 @@
 import React from 'react';
 import { useStore } from '../store';
 import { SceneCardBody } from './nodes';
+import { CARD_W } from '../layout';
 
 export function GalleryView() {
   const { doc } = useStore();
@@ -17,9 +18,10 @@ export function GalleryView() {
         <div key={g}>
           <div className="seccap">🗂️ {g} ({groups[g].length})</div>
           <div className="gallery">
-            {groups[g].map(id => (
-              <div key={id} className="scene nogutter" style={{ width: 222 }}>
-                <SceneCardBody sid={id} flowId={null} idx={0} tabId={null} />
+            {groups[g].map((id, i) => (
+              <div key={id} className="scene nogutter" style={{ width: CARD_W }}>
+                <SceneCardBody sid={id} flowId={null} idx={0} tabId={null}
+                  nav={{ seq: groups[g], index: i, label: '🗂️ ' + g }} />
               </div>
             ))}
           </div>

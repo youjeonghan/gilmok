@@ -69,7 +69,7 @@ export function useActions() {
         if (id === '__new__') {
           if (!r.title) return;
           id = newSceneId(d.scenes, r.title);
-          d.scenes[id] = { title: r.title, file: null, group: '', updated: '', note: '', themes: {} };
+          d.scenes[id] = { title: r.title, file: null, kind: 'design', group: '', updated: '', note: '', themes: {} };
         }
         df.seq.splice(idx, 0, id);
         bracketsOnInsert(df, idx, r.includeIdx);
@@ -85,7 +85,7 @@ export function useActions() {
         if (id === '__new__') {
           if (!r.title) return;
           id = newSceneId(d.scenes, r.title);
-          d.scenes[id] = { title: r.title, file: null, group: '', updated: '', note: '', themes: {} };
+          d.scenes[id] = { title: r.title, file: null, kind: 'design', group: '', updated: '', note: '', themes: {} };
         }
         t.start = id;
       });

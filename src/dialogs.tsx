@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useStore } from './store';
-import { titleOf } from './types';
+import { titleOf , isImageFile } from './types';
 
 /* ---------- 타입 ---------- */
 export interface AskField {
@@ -189,7 +189,9 @@ function PickDialog({ st, close }: { st: PickState | null; close: () => void }) 
               {r.tag && <span className="tag">{r.tag}</span>}
               <div className={'pv' + (r.file ? '' : ' none')}>
                 {r.file
-                  ? <iframe src={DATA + r.file} loading="lazy" tabIndex={-1} />
+                  ? (isImageFile(r.file)
+                    ? <img className="snap" src={DATA + r.file} loading="lazy" alt="" />
+                    : <iframe src={DATA + r.file} loading="lazy" tabIndex={-1} />)
                   : (r.val === '__new__' ? 'new' : '—')}
               </div>
             </div>

@@ -9,7 +9,7 @@ import { useStore } from '../store';
 import { useActions } from '../actions';
 import { titleOf, bracketAt, themePath, thumbUrl, FlowLane } from '../types';
 import {
-  computeLayout, sceneNodeIdFor, CARD_W, CARD_CENTER, LBL_ARM, RCAP_H, THUMB_H,
+  computeLayout, sceneNodeIdFor, CARD_W, CARD_CENTER, LBL_ARM, RCAP_H, THUMB_H, DEFAULT_SCENE_H,
   RHANDLE_X, TRUNK_BEND_DX, type LaneRow, type LNode
 } from '../layout';
 import { CanvasCtx, suppressClicks, type CanvasUIState } from '../canvasui';
@@ -243,9 +243,9 @@ function CanvasInner({ view }: { view: string }) {
           && !subtreeSids.has((n.data as any).sid) && (n.data as any).sid !== f.from)
         .map(n => ({
           nodeId: n.id, sid: (n.data as any).sid, x: n.x, y: n.y,
-          w: CARD_W, h: sizesRef.current.get(n.id)?.h ?? 196
+          w: CARD_W, h: sizesRef.current.get(n.id)?.h ?? DEFAULT_SCENE_H
         }));
-      const estH = (n: LNode) => sizesRef.current.get(n.id)?.h ?? (n.h ?? (n.type === 'scene' ? 196 : 30));
+      const estH = (n: LNode) => sizesRef.current.get(n.id)?.h ?? (n.h ?? (n.type === 'scene' ? DEFAULT_SCENE_H : 30));
       const estW = (n: LNode) => sizesRef.current.get(n.id)?.w ?? (n.w ?? (n.type === 'scene' ? CARD_W : 92));
       const basePos = new Map<string, { x: number; y: number }>();
       layout.nodes.forEach(n => { if (subtree.has(n.id)) basePos.set(n.id, { x: n.x, y: n.y }); });
@@ -320,8 +320,8 @@ function CanvasInner({ view }: { view: string }) {
           : { x: hitRect.x, y: hitRect.y + hitRect.h + 4, w: hitRect.w, h: 56 })
         : zone && zoneCard
           ? (zone === 'b'
-            ? { x: zoneCard.x - 10, y: zoneCard.bottom + 6, w: CARD_W + 20, h: 234 }
-            : { x: zoneCard.right + 10, y: zoneCard.top, w: 310, h: (zoneCard.bottom - zoneCard.top) + 220 })
+            ? { x: zoneCard.x - 10, y: zoneCard.bottom + 6, w: CARD_W + 20, h: DEFAULT_SCENE_H + 38 }
+            : { x: zoneCard.right + 10, y: zoneCard.top, w: CARD_W + 88, h: (zoneCard.bottom - zoneCard.top) + 220 })
           : null);
       // 자유 배치 — 라벨의 현재 위치에서 델타 계산, 블록 전체를 함께 이동
       const dx = node.position.x - drag.origin.x;

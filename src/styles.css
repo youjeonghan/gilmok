@@ -128,20 +128,24 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
 .react-flow__controls button svg{fill:var(--text-sub)}
 
 /* ===== 씬 카드 노드 ===== */
-.scene{width:222px;text-align:center;position:relative}
-.scene .gutter{position:absolute;left:222px;top:0;width:34px;height:132px;display:flex;
+/* 카드 크기 — layout.ts CARD_W(300)/THUMB_H(260)와 같이 바꿀 것 */
+.scene{width:300px;text-align:center;position:relative}
+.scene .gutter{position:absolute;left:300px;top:0;width:34px;height:260px;display:flex;
   align-items:center;justify-content:center}
 .scene.nogutter .gutter{display:none}
 /* RF는 비드래그·비선택 노드에 pointer-events:none을 건다 — 루트 카드·첫 Scene 추가·섹션 캡션은 되살린다
    (Bracket이 .blbl/.bh에 auto를 주는 것과 같은 관례) */
 .scene.nogutter,.seccap{pointer-events:auto}
-.thumb{width:212px;height:132px;margin:0 auto;border:1px solid var(--border);border-radius:12px;
-  overflow:hidden;background:#fff;position:relative}
+.thumb{width:290px;height:260px;margin:0 auto;border:1px solid var(--border);border-radius:12px;
+  overflow:hidden;background:var(--surface);position:relative}
 .thumb.click{cursor:grab}
 .thumb.click:hover{border-color:var(--primary);box-shadow:0 2px 10px rgba(232,86,60,.18)}
-.thumb iframe{width:1280px;height:800px;transform:scale(.1656);transform-origin:0 0;
+/* 정적 모드 iframe 폴백: 1280×800을 290폭에 맞춰 축소(.2266)하고 세로 가운데(181px → 위 39px 여백) */
+.thumb iframe{width:1280px;height:800px;transform:scale(.2266);transform-origin:0 0;margin-top:39px;
   border:0;pointer-events:none;background:#fff}
-.thumb img.snap{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+/* 썸네일은 잘라내지 않고 통째로(contain) — 세로 캡처도 HTML 씬도 클릭 전에 전체 화면이 보인다 */
+.thumb img.snap{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
+.thumb img.snap.img{background:var(--surface)}
 .thumb.empty{display:flex;align-items:center;justify-content:center;border-style:dashed;
   color:var(--mist);font-size:13px;background:var(--paper);cursor:grab}
 .thumb.addstart{font-size:34px;color:var(--text-dim);cursor:pointer;border-style:dashed}
@@ -159,8 +163,10 @@ header.top{display:flex;justify-content:space-between;align-items:center;gap:10p
 .cap b{display:block;font-size:12.5px;line-height:1.4;margin-top:6px;word-break:keep-all}
 .cap .grp{display:inline-block;font-size:10.5px;color:var(--jade);background:var(--grp-bg);
   border-radius:999px;padding:1px 8px;margin-top:3px}
+.cap .kind{display:inline-block;font-size:10.5px;color:var(--text-dim);background:var(--surface);
+  border:1px solid var(--border-soft);border-radius:999px;padding:1px 8px;margin-top:3px;margin-left:4px}
 .cap span.meta{display:block;font-size:11px;color:var(--text-faint)}
-.snote{margin:5px auto 0;max-width:206px;font-size:11.5px;line-height:1.5;text-align:left;
+.snote{margin:5px auto 0;max-width:280px;font-size:11.5px;line-height:1.5;text-align:left;
   color:var(--text-note);background:var(--surface);border:1px solid var(--border-soft);border-radius:9px;
   padding:6px 9px;cursor:pointer;white-space:pre-wrap;overflow:hidden;display:-webkit-box;
   -webkit-line-clamp:5;-webkit-box-orient:vertical}
@@ -317,3 +323,30 @@ dialog::backdrop{background:rgba(10,12,13,.5)}
 .screenmsg button{font:inherit;font-weight:700;padding:12px 22px;border-radius:12px;
   border:none;background:#C9432C;color:#fff;cursor:pointer}
 .screenmsg code{background:var(--hover-bg);border-radius:5px;padding:1px 6px}
+
+/* ===== 씬 뷰어 (카드 클릭 → 라인 한정 ‹ › 넘김) ===== */
+.viewer{position:fixed;inset:0;z-index:1000;background:rgba(10,12,13,.84);display:flex;align-items:center;justify-content:center}
+.viewer .vtop{position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;gap:10px;padding:0 18px;
+  color:#fff;font-size:13.5px;background:rgba(10,12,13,.94)}
+.viewer .vtop b{font-size:15px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.viewer .vtop .vlabel{background:var(--primary);color:#fff;border-radius:999px;padding:2px 10px;font-weight:700;white-space:nowrap}
+.viewer .vtop .vpos{color:#cfd3d1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.viewer .vtop .vkind{font-size:11px;color:#e8e6e1;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:1px 8px;white-space:nowrap}
+.viewer .vtop .sp{flex:1}
+.viewer .vtop button{font:inherit;font-size:13px;font-weight:700;color:#fff;background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.25);border-radius:9px;padding:6px 11px;cursor:pointer}
+.viewer .vtop button:hover{background:rgba(255,255,255,.26)}
+.viewer .vbody{width:min(92vw,1400px);height:calc(100vh - 128px);background:var(--surface);border-radius:14px;
+  overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.viewer .vbody img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.viewer .vbody iframe{width:100%;height:100%;border:0;background:#fff}
+.viewer .vempty{color:var(--mist);font-size:15px;border:1.5px dashed var(--border);border-radius:14px;padding:40px 60px}
+.viewer .vnav{position:absolute;top:50%;transform:translateY(-50%);width:56px;height:56px;border-radius:50%;border:0;
+  background:rgba(255,255,255,.16);color:#fff;font-size:36px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding-bottom:4px}
+.viewer .vnav:hover{background:rgba(255,255,255,.3)}
+.viewer .vnav:disabled{opacity:.22;cursor:default}
+.viewer .vnav:disabled:hover{background:rgba(255,255,255,.16)}
+.viewer .vnav.prev{left:16px}.viewer .vnav.next{right:16px}
+.viewer .vnote{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);max-width:70vw;color:#e8e6e1;font-size:13px;line-height:1.5;
+  background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px 14px;white-space:pre-wrap}
+
