@@ -69,6 +69,7 @@ export interface ServerInfo {
   canUpdate: boolean;
   canTerm?: boolean;
   canThumb?: boolean;
+  canNewWindow?: boolean; // Electron: 새 창(프로세스 하나 더) 지원
 }
 
 /** 씬 썸네일 PNG URL (서버 모드) — v로 캐시 무효화 */

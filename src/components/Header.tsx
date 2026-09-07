@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { useActions } from '../actions';
 import { useDialogs } from '../dialogs';
-import { pickFolder, installSkill, newProject, updateCheck, updateDownload, openFolder, useFolder, discoverProjects } from '../api';
+import { pickFolder, installSkill, newProject, updateCheck, updateDownload, openFolder, useFolder, discoverProjects, newWindow } from '../api';
 import type { ProjectRef } from '../api';
 
 /** 경로 뒤 두 세그먼트만 표시 (전체는 title로) */
@@ -22,7 +22,7 @@ function PanelIcon({ open }: { open: boolean }) {
   );
 }
 
-const VER = '0.7.14'; // 서버 미응답 시 폴백 표기 — 실제 버전은 server.version
+const VER = '0.7.15'; // 서버 미응답 시 폴백 표기 — 실제 버전은 server.version
 const APP_NAME = '길목'; // 저장소 gilmok · 설치 파일 gilmok-setup — 이름 전부 길목/gilmok으로 통일
 
 /** 앱 로고 — 씬 카드 두 장을 ㄴ자 커넥터로 잇는 글리프 */
@@ -261,6 +261,10 @@ export function Header() {
                   if (res.ok) location.reload();
                   else if (res.error) await dialogs.askInfo('생성 실패 — ' + res.error);
                 }}>＋ 새 프로젝트 만들기…</div>
+                {server?.canNewWindow && (
+                  <div className="pm-item pm-pick" title="길목 창을 하나 더 연다 — 창마다 다른 프로젝트를 열 수 있다 (Ctrl/Cmd+Shift+N)"
+                    onClick={() => { setProjOpen(false); newWindow(); }}>⧉ 새 창 <span className="pm-sub">Ctrl+Shift+N</span></div>
+                )}
               </div>
             )}
           </span>

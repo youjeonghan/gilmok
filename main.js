@@ -1,13 +1,13 @@
 // 길목(gilmok) — Electron 메인 프로세스
 // 내부 HTTP 서버(127.0.0.1 전용)가 뷰어와 데이터 폴더를 서빙한다 (Go 서버와 동일 API + Electron 확장).
-const { app, BrowserWindow, dialog, shell } = require('electron');
+const { app, BrowserWindow, dialog, shell, Menu } = require('electron');
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { pathToFileURL } = require('url');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 
 // pty는 프리빌트(@lydell/node-pty) — 로드 실패 시 터미널 기능만 비활성
@@ -122,13 +122,14 @@ function getThumb(rel) {
   const abs = path.normalize(path.join(base, rel));
   if (!abs.startsWith(base)) return Promise.reject(new Error('bad path'));
   const st = fs.statSync(abs);
-  const out = path.join(thumbDir(), thumbKey(rel) + '-' + Math.round(st.mtimeMs) + '-w' + THUMB_W + '.png'); // 폭이 바뀌면 캐시 재생성
+  const key = thumbKey(abs); // 절대경로 기준 — 프로젝트가 달라도 같은 상대경로 씬이 캐시를 공유하지 않게
+  const out = path.join(thumbDir(), key + '-' + Math.round(st.mtimeMs) + '-w' + THUMB_W + '.png'); // 폭이 바뀌면 캐시 재생성
   if (fs.existsSync(out)) return Promise.resolve(out);
   const job = thumbChain.then(() => {
     if (fs.existsSync(out)) return out;
     return generateThumb(abs, out).then(p => {
       // 같은 씬의 옛 mtime 캐시 정리
-      const prefix = thumbKey(rel) + '-';
+      const prefix = key + '-';
       try {
         for (const f of fs.readdirSync(thumbDir())) {
           if (f.startsWith(prefix) && path.join(thumbDir(), f) !== out) {
@@ -371,7 +372,8 @@ function startServer() {
             canPick: true,
             canUpdate: true,
             canTerm: !!ptyMod,
-            canThumb: true
+            canThumb: true,
+            canNewWindow: true
           });
         }
         if (u.startsWith('/api/thumb')) {
@@ -499,6 +501,11 @@ function startServer() {
           shell.openPath(dataDir);
           return sendJSON(res, { ok: true });
         }
+        if (u.startsWith('/api/new-window')) { // 앱 프로세스 하나 더 (Ctrl+Shift+N과 동일)
+          if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
+          spawnNewInstance();
+          return sendJSON(res, { ok: true });
+        }
         if (u.startsWith('/api/install-skill')) {
           if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
           if (!dataDir) return sendJSON(res, { ok: false, error: 'no project' });
@@ -544,24 +551,35 @@ function startServer() {
         res.writeHead(500); res.end(String(e));
       }
     });
-    const wss = new WebSocketServer({ server, path: '/api/term' });
-    wss.on('connection', attachTermWS);
-    // 고정 포트 — origin(host:port)이 바뀌면 localStorage(앱 테마·뷰포트·탭 상태)가 통째로 날아간다.
-    // 재시작·업데이트에도 유지되도록 고정하고, 점유 중이면 임시 포트로 폴백(그 세션만 상태 미유지).
+    // 포트는 47823부터 순차 — origin(host:port)에 localStorage(뷰포트·탭 상태)가 묶여 있어서
+    // 첫 창은 늘 47823, 두 번째 창은 47824… 로 창 순서가 같으면 재시작 후에도 상태가 유지된다.
+    // 20개를 다 쓰면 임시 포트(0)로 폴백(그 세션만 상태 미유지).
     // 핸들러는 상시 등록('on') — 폴백 중 두 번째 error가 uncaught 예외 다이얼로그로 새지 않게.
+    const BASE_PORT = 47823, MAX_SEQ = 20;
     let resolved = false;
-    let fellBack = false;
-    const done = () => { if (!resolved) { resolved = true; resolve(server.address().port); } };
+    let tries = 0;
+    const done = () => {
+      if (resolved) return;
+      resolved = true;
+      // 터미널 WebSocket은 listen 성공 후에 붙인다 — ws는 http 서버의 'error'를 재방출하는데, 리스너 없는
+      // EventEmitter의 'error'는 throw → 포트 충돌 재시도 중 uncaught 예외 다이얼로그로 프로세스가 멈춘다.
+      const wss = new WebSocketServer({ server, path: '/api/term' });
+      wss.on('error', e => console.error('터미널 WS 오류:', e));
+      wss.on('connection', attachTermWS);
+      resolve(server.address().port);
+    };
+    const tryListen = port => server.listen(port, '127.0.0.1', done);
     server.on('error', err => {
       if (resolved) return;
-      if (!fellBack && err && (err.code === 'EADDRINUSE' || err.code === 'EACCES')) {
-        fellBack = true;
-        setImmediate(() => { try { server.listen(0, '127.0.0.1', done); } catch (e) { console.error('listen fallback 실패:', e); } });
+      if (err && (err.code === 'EADDRINUSE' || err.code === 'EACCES') && tries <= MAX_SEQ) {
+        tries++;
+        const next = tries <= MAX_SEQ ? BASE_PORT + tries : 0;
+        setImmediate(() => { try { tryListen(next); } catch (e) { console.error('listen fallback 실패:', e); } });
       } else {
         console.error('서버 listen 오류:', err);
       }
     });
-    server.listen(47823, '127.0.0.1', done);
+    tryListen(BASE_PORT);
   });
 }
 
@@ -585,18 +603,32 @@ function createWindow() {
 
 app.setAppUserModelId('dev.youjeonghan.flowmap'); // 작업표시줄 그룹 아이덴티티 (dev에서도 자체 아이콘·제목 표시)
 
-// 단일 인스턴스 — 이미 실행 중이면 새 프로세스는 종료하고 기존 창을 앞으로 (포트 충돌 원천 차단)
-if (!app.requestSingleInstanceLock()) {
-  app.quit();
-  process.exit(0);
+/* ---------- 새 창 = 앱 프로세스 하나 더 ----------
+   창마다 프로젝트·터미널·파일 감시가 독립이고 포트는 47823부터 순차로 잡는다.
+   같은 프로젝트를 두 창에서 열면 상대 창의 저장이 외부 변경으로 감지돼 자동 리로드된다.
+   (v0.7.8~0.7.14의 단일 인스턴스 잠금은 제거 — 포트 순차 폴백이 EADDRINUSE를 대신 해결) */
+function spawnNewInstance() {
+  const args = app.isPackaged ? [] : [app.getAppPath()];
+  try {
+    const child = spawn(process.execPath, args, { detached: true, stdio: 'ignore', env: process.env });
+    child.unref();
+  } catch (e) { console.error('새 창 실행 실패:', e); }
 }
-app.on('second-instance', () => {
-  if (win) {
-    if (win.isMinimized()) win.restore();
-    win.show();
-    win.focus();
-  }
-});
+function buildMenu() {
+  const isMac = process.platform === 'darwin';
+  const tpl = [
+    ...(isMac ? [{ role: 'appMenu' }] : []),
+    { label: '파일', submenu: [
+      { label: '새 창', accelerator: 'CmdOrCtrl+Shift+N', click: spawnNewInstance },
+      { type: 'separator' },
+      isMac ? { role: 'close' } : { role: 'quit' }
+    ] },
+    { role: 'editMenu' },
+    { role: 'viewMenu' },
+    { role: 'windowMenu' }
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(tpl));
+}
 
 app.whenReady().then(async () => {
   // 패키지명 개명(flow-map → gilmok)으로 userData 경로가 바뀜 — 구 설정(최근 프로젝트·토큰) 자동 이전
@@ -618,6 +650,7 @@ app.whenReady().then(async () => {
   const port = await startServer();
   baseURL = `http://127.0.0.1:${port}/`;
   console.log('길목 v' + VERSION + ' → ' + baseURL + (dataDir ? ' (데이터: ' + dataDir + ')' : ' (프로젝트 미선택)'));
+  buildMenu();
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

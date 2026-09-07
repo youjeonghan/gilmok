@@ -62,6 +62,10 @@ export const installSkill = async (): Promise<{ ok: boolean; path?: string; erro
 export const openFolder = async (): Promise<{ ok: boolean }> =>
   (await fetch('api/open-folder', { method: 'POST' })).json();
 
+/** 새 창 — 길목 프로세스를 하나 더 띄운다 (창마다 프로젝트 독립). 단축키 Ctrl/Cmd+Shift+N과 동일 */
+export const newWindow = async (): Promise<{ ok: boolean }> =>
+  (await fetch('api/new-window', { method: 'POST' })).json();
+
 export const updateCheck = async (): Promise<{
   ok: boolean; current?: string; latest?: string; hasUpdate?: boolean; error?: string;
 }> => (await fetch('api/update-check', { method: 'POST' })).json();
