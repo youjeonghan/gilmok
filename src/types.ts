@@ -1,5 +1,6 @@
-/* flow.json 스키마 (v3) — 의미 구조는 v6과 동일, layout은 자유 배치용 확장(선택).
+/* flow.json 스키마 (v4) — v3 + 버전 레이어(versions·rev·since·versionTabs, 선택). 버전 규칙은 versions.ts.
    kind는 v0.7.14에서 추가 — 없던 문서는 normalize가 'design'으로 보정한다 */
+import type { Version, SceneRev, TabOverride } from './versions';
 
 export interface Service {
   name: string;
@@ -21,6 +22,10 @@ export interface Scene {
   group?: string;
   updated?: string;
   note?: string;
+  /** 이 씬이 처음 생긴 버전 (없으면 기준 버전) */
+  since?: string;
+  /** 버전별 변경분 — 바뀐 필드만, 또는 { removed: true } */
+  rev?: Record<string, SceneRev>;
 }
 
 export interface Bracket {
@@ -54,6 +59,10 @@ export interface FlowDoc {
   scenes: Record<string, Scene>;
   flows: FlowLane[];
   layout?: Record<string, TabLayout>;
+  /** 버전 목록(일자형). 첫 항목 = 기준 버전 = 최상위 tabs/flows/scenes */
+  versions?: Version[];
+  /** 버전별로 바뀐 탭 구조(탭 단위 통째) */
+  versionTabs?: Record<string, Record<string, TabOverride>>;
 }
 
 export interface ServerInfo {
@@ -70,6 +79,7 @@ export interface ServerInfo {
   canTerm?: boolean;
   canThumb?: boolean;
   canNewWindow?: boolean; // Electron: 새 창(프로세스 하나 더) 지원
+  canFork?: boolean;
 }
 
 /** 씬 썸네일 PNG URL (서버 모드) — v로 캐시 무효화 */
@@ -84,6 +94,9 @@ export interface UIState {
   viewport?: Record<string, { x: number; y: number; zoom: number }>; // 탭별 뷰포트
   termOpen?: boolean;
   termW?: number;
+  /** 버전 오버레이 — 상속 표시 / 직전 버전 대비 diff (보고 싶을 때만 켬) */
+  verInherit?: boolean;
+  verDiff?: boolean;
 }
 
 export function normalize(d: any): FlowDoc {

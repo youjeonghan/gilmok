@@ -4,6 +4,7 @@ import { Header } from './components/Header';
 import { FlowCanvas } from './components/FlowCanvas';
 import { GalleryView } from './components/GalleryView';
 import { TerminalPanel } from './components/TerminalPanel';
+import { VersionDiffPanel } from './components/VersionBar';
 import { pickFolder, newProject } from './api';
 import { useDialogs } from './dialogs';
 
@@ -69,6 +70,7 @@ export function App() {
     <>
       <Header />
       <div id="workarea">
+        <VersionDiffPanel />
         {view === 'scenes'
           ? <GalleryView />
           : <div id="stage"><FlowCanvas view={view} /></div>}

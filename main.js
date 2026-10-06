@@ -373,7 +373,8 @@ function startServer() {
             canUpdate: true,
             canTerm: !!ptyMod,
             canThumb: true,
-            canNewWindow: true
+            canNewWindow: true,
+            canFork: true
           });
         }
         if (u.startsWith('/api/thumb')) {
@@ -494,6 +495,24 @@ function startServer() {
           try { JSON.parse(body.toString()); } catch (e) { return sendJSON(res, { ok: false, error: 'invalid json' }); }
           fs.writeFileSync(path.join(dataDir, 'flow.json'), body);
           return sendJSON(res, { ok: true });
+        }
+        if (u.startsWith('/api/fork-scene')) { // 버전용 씬 파일 복제 — 같은 폴더 <이름>@<버전>.html
+          if (req.method !== 'POST') { res.writeHead(405); return res.end(); }
+          if (!dataDir) return sendJSON(res, { ok: false, error: 'no project' });
+          let q;
+          try { q = JSON.parse((await readBody(req)).toString()); } catch (e) { return sendJSON(res, { ok: false, error: 'invalid json' }); }
+          const file = String(q.file || '').replace(/\\/g, '/');
+          const ver = String(q.ver || '').replace(/[^\w.\-]/g, '_');
+          const root = path.resolve(dataDir);
+          const src = path.resolve(root, file);
+          if (!file || !ver || !src.startsWith(root + path.sep)) return sendJSON(res, { ok: false, error: 'invalid path' });
+          if (!fs.existsSync(src)) return sendJSON(res, { ok: false, error: '원본 파일이 없어요: ' + file });
+          const ext = path.posix.extname(file);
+          const stem = file.slice(0, file.length - ext.length).replace(/@[^/]*$/, ''); // 이전 버전 접미 제거
+          const rel = stem + '@' + ver + ext;
+          const dst = path.resolve(root, rel);
+          if (!fs.existsSync(dst)) fs.copyFileSync(src, dst);
+          return sendJSON(res, { ok: true, file: rel });
         }
         if (u.startsWith('/api/open-folder')) {
           if (req.method !== 'POST') { res.writeHead(405); return res.end(); }

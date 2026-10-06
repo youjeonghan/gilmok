@@ -59,6 +59,14 @@ export const newProject = async (name: string): Promise<{ ok: boolean; dataDir?:
 export const installSkill = async (): Promise<{ ok: boolean; path?: string; error?: string }> =>
   (await fetch('api/install-skill', { method: 'POST' })).json();
 
+/** 씬 파일을 이 버전용으로 복제 — 같은 폴더에 <이름>@<버전>.html (상대 경로 자산 유지) */
+export const forkSceneFile = async (file: string, ver: string): Promise<{ ok: boolean; file?: string; error?: string }> =>
+  (await fetch('api/fork-scene', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file, ver })
+  })).json();
+
 export const openFolder = async (): Promise<{ ok: boolean }> =>
   (await fetch('api/open-folder', { method: 'POST' })).json();
 

@@ -1,13 +1,21 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { FlowDoc, ServerInfo, UIState, normalize } from './types';
 import { fetchHealth, postFlow, saveAppTheme } from './api';
+import { absorb, effectiveVersion, hasVersions, resolve, versionMeta, VersionMeta } from './versions';
 
 export type AppPhase = 'loading' | 'ready' | 'needProject' | 'loaderr';
 
 interface Store {
   phase: AppPhase;
   errMsg: string;
+  /** 선택 버전으로 해석한 문서 — 화면·액션은 이것만 다룬다 */
   doc: FlowDoc | null;
+  /** 저장 형태(버전 레이어 포함) — flow.json 그대로 */
+  raw: FlowDoc | null;
+  /** 현재 버전 id (버전 관리 안 하면 null) */
+  ver: string | null;
+  setVersion: (v: string) => void;
+  verMeta: VersionMeta;
   server: ServerInfo | null;
   DATA: string;
   isServer: boolean;
@@ -22,6 +30,8 @@ interface Store {
   thumbVer: number;
   /** 문서 변경 커밋 — 히스토리 스냅샷 + 저장. mutator는 복제본을 수정한다 */
   commit: (mutator: (d: FlowDoc) => void) => void;
+  /** 저장 형태 직접 변경 (버전 관리 조작용). 새 문서를 반환하면 통째로 교체 */
+  commitRaw: (mutator: (r: FlowDoc) => FlowDoc | void) => void;
   undo: () => void;
   redo: () => void;
   resetToFile: () => Promise<void>;
@@ -37,7 +47,8 @@ const cleanPretty = (d: FlowDoc) => JSON.stringify(d, null, 2) + '\n';
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [phase, setPhase] = useState<AppPhase>('loading');
   const [errMsg, setErrMsg] = useState('');
-  const [doc, setDoc] = useState<FlowDoc | null>(null);
+  const [raw, setDoc] = useState<FlowDoc | null>(null);
+  const [verPick, setVerPick] = useState<string | null>(null);
   const [server, setServer] = useState<ServerInfo | null>(null);
   const [DATA, setDATA] = useState('./');
   const [activeTab, setTab] = useState('all');
@@ -58,12 +69,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (serverRef.current) saveAppTheme(t); // config.json이 정본 — 재설치·포트 폴백에도 유지
   }, []);
 
-  const keys = useRef({ LS: '', LS_TAB: '', LS_UI: '' });
+  const keys = useRef({ LS: '', LS_TAB: '', LS_UI: '', LS_VER: '' });
   const dataRef = useRef('./');
   const hist = useRef({ past: [] as string[], future: [] as string[], lastSnap: null as string | null });
   const saveTimer = useRef<any>(null);
+  const ver = useMemo(() => (raw ? effectiveVersion(raw, verPick) : null), [raw, verPick]);
+  const doc = useMemo(() => (raw ? resolve(raw, ver) : null), [raw, ver]);
+  const verMeta = useMemo(() => versionMeta(raw, ver), [raw, ver]);
   const docRef = useRef<FlowDoc | null>(null);
   docRef.current = doc;
+  const rawRef = useRef<FlowDoc | null>(null);
+  rawRef.current = raw;
+  const verRef = useRef<string | null>(null);
+  verRef.current = ver;
   const serverRef = useRef<ServerInfo | null>(null);
   serverRef.current = server;
 
@@ -76,11 +94,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const commit = useCallback((mutator: (d: FlowDoc) => void) => {
-    const cur = docRef.current;
-    if (!cur) return;
-    const next = structuredClone(cur);
-    mutator(next);
+  /** 새 저장 형태를 히스토리에 쌓고 반영·저장 */
+  const pushRaw = useCallback((next: FlowDoc) => {
     const snap = clean(next);
     const h = hist.current;
     if (h.lastSnap !== null && snap !== h.lastSnap) {
@@ -89,14 +104,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       h.future.length = 0;
     }
     h.lastSnap = snap;
+    rawRef.current = next;
     setDoc(next);
     persist(next);
   }, [persist]);
 
+  const commit = useCallback((mutator: (d: FlowDoc) => void) => {
+    const r = rawRef.current, cur = docRef.current;
+    if (!r || !cur) return;
+    const next = structuredClone(cur);
+    mutator(next);
+    // 버전 관리 중이면 이전 버전과 달라진 씬·탭만 현재 버전 레이어에 기록
+    pushRaw(hasVersions(r) ? absorb(r, verRef.current, cur, next) : next);
+  }, [pushRaw]);
+
+  const commitRaw = useCallback((mutator: (r: FlowDoc) => FlowDoc | void) => {
+    const r = rawRef.current;
+    if (!r) return;
+    const next = structuredClone(r);
+    pushRaw(normalize(mutator(next) || next));
+  }, [pushRaw]);
+
+  const setVersion = useCallback((v: string) => {
+    setVerPick(v);
+    try { localStorage.setItem(keys.current.LS_VER, v); } catch {}
+  }, []);
+
   const undo = useCallback(() => {
     const h = hist.current;
-    if (!h.past.length || !docRef.current) return;
-    h.future.push(clean(docRef.current));
+    if (!h.past.length || !rawRef.current) return;
+    h.future.push(clean(rawRef.current));
     const s = h.past.pop()!;
     const d = normalize(JSON.parse(s));
     h.lastSnap = s;
@@ -105,8 +142,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const redo = useCallback(() => {
     const h = hist.current;
-    if (!h.future.length || !docRef.current) return;
-    h.past.push(clean(docRef.current));
+    if (!h.future.length || !rawRef.current) return;
+    h.past.push(clean(rawRef.current));
     const s = h.future.pop()!;
     const d = normalize(JSON.parse(s));
     h.lastSnap = s;
@@ -144,7 +181,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const data = ((params.get('data') || (srv ? 'data/' : './')).replace(/\/?$/, '/'));
       const projKey = (srv && srv.projectKey) ? srv.projectKey : data;
       const LS = 'gilmok:' + projKey;
-      keys.current = { LS, LS_TAB: LS + ':tab', LS_UI: LS + ':ui' };
+      keys.current = { LS, LS_TAB: LS + ':tab', LS_UI: LS + ':ui', LS_VER: LS + ':ver' };
+      try { setVerPick(localStorage.getItem(keys.current.LS_VER)); } catch {}
       // 구 'flow-map:' 키 마이그레이션 — 프로젝트별 편집본·탭·뷰포트 유지
       try {
         const oldLS = 'flow-map:' + projKey;
@@ -217,7 +255,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const es = new EventSource('api/flow-events');
     es.onmessage = async (ev: MessageEvent) => {
       if (ev.data === 'scenes') { setThumbVer(v => v + 1); return; } // 씬 파일만 변경 — 썸네일 갱신
-      const cur = docRef.current;
+      const cur = rawRef.current;
       if (!cur) return;
       try {
         const d = normalize(await (await fetch(dataRef.current + 'flow.json?t=' + Date.now())).json());
@@ -256,9 +294,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <Ctx.Provider value={{
-      phase, errMsg, doc, server, DATA, isServer: !!server,
+      phase, errMsg, doc, raw, ver, setVersion, verMeta, server, DATA, isServer: !!server,
       activeTab, setActiveTab, ui, setUI, appTheme, setAppTheme, thumbVer,
-      commit, undo, redo, resetToFile, patchServer
+      commit, commitRaw, undo, redo, resetToFile, patchServer
     }}>
       {children}
     </Ctx.Provider>

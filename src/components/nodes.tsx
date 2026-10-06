@@ -5,6 +5,9 @@ import { useStore } from '../store';
 import { useActions } from '../actions';
 import { titleOf, themePath, thumbUrl, isImageFile, flowsFrom } from '../types';
 import { useViewer, ViewerReq } from './Viewer';
+import { revertScene } from '../versions';
+import { forkSceneFile } from '../api';
+import { useDialogs } from '../dialogs';
 import { useCanvasUI, clickSuppressed } from '../canvasui';
 import { InlineEdit } from './InlineEdit';
 import { CARD_W, THUMB_H, RCAP_H, CARD_CENTER, RHANDLE_X } from '../layout';
@@ -35,6 +38,30 @@ export function ScenePreview({ file, v }: { file: string; v?: string }) {
   return <iframe key={file} src={DATA + file} loading="lazy" tabIndex={-1} />;
 }
 
+/** 버전 오버레이 — 보고 싶을 때만(상속/diff 토글) 카드 클래스·배지를 준다 */
+export function useSceneVer(sid: string): { cls: string; badge: { text: string; kind: string; title: string } | null } {
+  const { verMeta: m, ui } = useStore();
+  const s = m.enabled && m.idx > 0 ? m.scene[sid] : null;
+  if (!s) return { cls: '', badge: null };
+  let cls = '';
+  let badge: { text: string; kind: string; title: string } | null = null;
+  if (ui.verDiff && s.status !== 'same') {
+    cls += ' v-' + s.status;
+    badge = s.status === 'new'
+      ? { text: '신규', kind: 'new', title: 'v' + m.cur + '에서 새로 생긴 Scene' }
+      : { text: '변경', kind: 'changed', title: '직전 버전(v' + m.prev?.id + ') 대비 변경' };
+  }
+  if (ui.verInherit) {
+    if (s.status === 'same') {
+      cls += ' v-inherited';
+      badge = badge || { text: 'v' + s.from, kind: 'inh', title: 'v' + s.from + ' 것을 그대로 상속' };
+    } else {
+      badge = badge || { text: 'v' + m.cur, kind: 'own', title: '이 버전(v' + m.cur + ')에서 정의' };
+    }
+  }
+  return { cls, badge };
+}
+
 /* ---------- 씬 카드 본체 (RF 노드와 갤러리에서 공용) ---------- */
 export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }: {
   sid: string;
@@ -46,9 +73,11 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }
   /** 뷰어 넘김 순서를 여는 쪽이 지정할 때 (갤러리 = 그룹 순서). 없으면 소속 Branch seq / 루트 + 첫 Branch */
   nav?: ViewerReq;
 }) {
-  const { doc, ui, setUI } = useStore();
+  const { doc, ui, setUI, ver, verMeta, server, commit, commitRaw } = useStore();
   const acts = useActions();
   const viewer = useViewer();
+  const dialogs = useDialogs();
+  const vb = useSceneVer(sid).badge;
   if (!doc) return null;
   /* 뷰어 순서 — 그 라인에 한정 */
   const navFor = (): ViewerReq => {
@@ -69,6 +98,22 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }
   // 가져온 화면(capture)·이미지 파일은 클로드 디자인 딥링크 대상이 아니다
   const du = sc.kind === 'capture' || isImageFile(sc.file) ? null : designEditUrl(doc.service?.designUrl, sc.file);
 
+  // 버전 관리 중(기준 이후 버전)일 때만: 이 버전용 파일 복제 · 이 버전 변경 되돌리기
+  const vs = verMeta.enabled && verMeta.idx > 0 && ver ? verMeta.scene[sid] : null;
+  const canFork = !!(vs && sc.file && server?.canFork && !sc.file.includes('@' + ver + '.'));
+  const forkFile = async () => {
+    if (!sc.file || !ver) return;
+    const r = await forkSceneFile(sc.file, ver);
+    if (!r.ok || !r.file) { await dialogs.askInfo('복제 실패: ' + (r.error || '')); return; }
+    const nf = r.file;
+    commit(d => { if (d.scenes[sid]) d.scenes[sid].file = nf; });
+    await dialogs.askInfo('v' + ver + '용 파일을 만들었어요 — 이 파일만 고치면 이 버전에만 반영돼요.\n' + nf);
+  };
+  const revert = async () => {
+    if (!ver || !(await dialogs.askConfirm('「' + titleOf(doc, sid) + '」의 v' + ver + ' 변경을 되돌려 직전 버전 것을 쓸까요?'))) return;
+    commitRaw(d => { revertScene(d, ver, sid); });
+  };
+
   const themeNames = ['default', 'light', 'dark',
     ...Object.keys(sc.themes || {}).filter(t => t !== 'light' && t !== 'dark'), '+'];
 
@@ -83,6 +128,7 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }
         {path
           ? <ScenePreview file={path} v={sc.updated} />
           : (theme === 'default' ? '미제작' : `'${theme}' 테마 미등록`)}
+        {vb && <span className={'vbadge ' + vb.kind + ' oncard'} title={vb.title}>{vb.text}</span>}
         <div className="themes nodrag">
           {themeNames.map(t => {
             const label = t === 'default' ? 'D' : t === 'light' ? 'L' : t === 'dark' ? 'N' : t === '+' ? '＋' : t.slice(0, 2);
@@ -121,6 +167,12 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }
         {tabId && <button title="이 Scene에서 Branch 추가"
           onMouseDown={e => e.stopPropagation()}
           onClick={() => acts.addBranch(sid, tabId)}>⑂ Branch</button>}
+        {canFork && <button title={'이 Scene 파일을 v' + ver + '용으로 복제 — 이후 수정은 이 버전에만 반영'}
+          onMouseDown={e => e.stopPropagation()}
+          onClick={forkFile}>⎇ v{ver}용</button>}
+        {vs?.status === 'changed' && <button title="이 버전의 변경을 되돌려 직전 버전 것을 상속"
+          onMouseDown={e => e.stopPropagation()}
+          onClick={revert}>↺ 되돌리기</button>}
         {du && <button title="클로드 디자인에서 편집"
           onMouseDown={e => e.stopPropagation()}
           onClick={() => window.open(du, '_blank')}>↗ 디자인</button>}
@@ -137,13 +189,15 @@ export function SceneNode({ id, data }: NodeProps) {
   const d = data as { sid: string; flowId: string | null; idx: number; tabId: string | null; isRoot?: boolean };
   const acts = useActions();
   const cui = useCanvasUI();
+  const vcls = useSceneVer(d.sid).cls;
   const shifted = !!(cui.shift && d.flowId === cui.shift.flowId
     && cui.shift.entryIdxOf[id] != null
     && cui.shift.entryIdxOf[id] >= cui.shift.fromEntryIdx);
   const cls = 'scene'
     + (d.isRoot || !d.flowId ? ' nogutter' : '')
     + (cui.anchorTarget === id ? ' anchor-target' : '')
-    + (cui.dragSrc === id ? ' drag-src' : '');
+    + (cui.dragSrc === id ? ' drag-src' : '')
+    + vcls;
   return (
     <div className={cls} style={{
       width: CARD_W,

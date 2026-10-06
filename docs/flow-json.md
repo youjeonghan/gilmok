@@ -51,6 +51,46 @@
 }
 ```
 
+## 버전 (선택 — v0.8.0+)
+
+헤더 **⎇ 버전**으로 켠다. 버전 필드가 없으면 위 구조 그대로 동작한다(하위 호환).
+
+```jsonc
+{
+  "versions": [                                   // 일자형 — 첫 항목이 기준 버전
+    { "id": "1.0", "title": "베타", "date": "2026-12-13" },
+    { "id": "1.1", "title": "진정성 장치", "tabOrder": ["t-signup", "main"] }  // tabOrder = 상속 순서와 다를 때만
+  ],
+
+  // 최상위 tabs / flows / layout / scenes = 기준 버전(1.0)
+  "scenes": {
+    "chat": {
+      "title": "채팅", "file": "scenes/screens/07-chat.html",
+      "rev": {
+        "1.1": { "file": "scenes/screens/07-chat@1.1.html" },   // 그 버전에서 바뀐 필드만
+        "1.2": { "removed": true }                              // 그 버전에서 삭제
+      }
+    },
+    "date-card": { "title": "같이 하기 카드", "file": null, "since": "1.1" }  // 1.1에서 신규
+  },
+
+  "versionTabs": {                                 // 그 버전에서 바뀐 Tab 구조 — Tab 단위 통째
+    "1.1": {
+      "main": { "tab": { "id": "main", "title": "메인", "start": "landing" }, "flows": [ /* … */ ], "layout": { "offsets": {} } },
+      "t-old": { "removed": true }
+    }
+  }
+}
+```
+
+**해석 규칙 — "선택 버전 이하에서 가장 최근 정의를 쓴다."**
+
+- Scene: 기준(또는 `since`) 정의에 `rev`를 버전 순서대로 덮어쓴다. `removed`면 그 버전부터 없음(이후 `rev`에 필드가 오면 다시 생김).
+- Tab: 선택 버전 이하에서 가장 최근의 `versionTabs[버전][탭]`을 통째로 쓴다. 없으면 기준(최상위)의 Tab·Branch·배치.
+- 바뀌지 않은 건 기록하지 않는다 — 기록이 없으면 이전 버전 것을 상속.
+- 앱에서 편집하면 자동으로 이 형태로 기록된다. 외부(AI)에서 고칠 때도 같은 규칙을 지킨다: 특정 버전만 바꾸려면 최상위가 아니라 `rev[버전]`·`versionTabs[버전]`을 고친다.
+- 버전용 Scene 파일은 같은 폴더에 `<이름>@<버전>.html`로 둔다(카드 호버 ⎇ 버튼이 만들어 줌).
+
 ## id 규칙
 
 - **Scene id** = 내부 키(파일 매핑·seq 참조·AI 참조). 앱에서 만들면 **제목 슬러그로 자동 발급**, 중복 시 `_2`, `_3`…

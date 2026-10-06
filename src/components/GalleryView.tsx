@@ -1,8 +1,17 @@
 /* ⊞ 씬 갤러리 — 카테고리 그룹별 그리드 (캔버스 밖 일반 스크롤 뷰) */
 import React from 'react';
 import { useStore } from '../store';
-import { SceneCardBody } from './nodes';
+import { SceneCardBody, useSceneVer } from './nodes';
 import { CARD_W } from '../layout';
+
+function GalleryCard({ id, seq, index, label }: { id: string; seq: string[]; index: number; label: string }) {
+  const v = useSceneVer(id);
+  return (
+    <div className={'scene nogutter' + v.cls} style={{ width: CARD_W }}>
+      <SceneCardBody sid={id} flowId={null} idx={0} tabId={null} nav={{ seq, index, label }} />
+    </div>
+  );
+}
 
 export function GalleryView() {
   const { doc } = useStore();
@@ -19,10 +28,7 @@ export function GalleryView() {
           <div className="seccap">🗂️ {g} ({groups[g].length})</div>
           <div className="gallery">
             {groups[g].map((id, i) => (
-              <div key={id} className="scene nogutter" style={{ width: CARD_W }}>
-                <SceneCardBody sid={id} flowId={null} idx={0} tabId={null}
-                  nav={{ seq: groups[g], index: i, label: '🗂️ ' + g }} />
-              </div>
+              <GalleryCard key={id} id={id} seq={groups[g]} index={i} label={'🗂️ ' + g} />
             ))}
           </div>
         </div>

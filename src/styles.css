@@ -350,3 +350,55 @@ dialog::backdrop{background:rgba(10,12,13,.5)}
 .viewer .vnote{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);max-width:70vw;color:#e8e6e1;font-size:13px;line-height:1.5;
   background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px 14px;white-space:pre-wrap}
 
+/* ===== 버전 ===== */
+.verstart,.verpick{font:inherit;font-size:12px;font-weight:700;padding:3px 9px;border-radius:8px;cursor:pointer;
+  border:1px solid var(--border);background:var(--surface);color:var(--text-sub)}
+.verstart{font-weight:600;color:var(--text-faint);border-style:dashed}
+.verstart:hover,.verpick:hover,.verpick.on{border-color:var(--jade);color:var(--jade)}
+.verpick .vt{font-weight:500;color:var(--text-faint)}
+.verbar{position:relative;display:inline-flex;align-items:center;gap:6px}
+.vermenu{position:absolute;top:30px;left:0;z-index:70;min-width:220px;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:6px;font-weight:500;font-size:12.5px}
+.vm-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;color:var(--ink)}
+.vm-item:hover{background:var(--hover-bg)}
+.vm-item.on{background:var(--grp-bg)}
+.vm-item.on b{color:var(--jade)}
+.vm-title{color:var(--text-sub);flex:1}
+.vm-tag{font-size:10.5px;font-weight:700;color:var(--text-faint);border:1px solid var(--border);border-radius:6px;padding:0 5px}
+.vm-act{color:var(--text-sub)}
+.vm-danger{color:var(--primary-600)}
+.vtoggles{margin-left:2px}
+.tchip.wide{width:auto;padding:0 7px}
+.vbadge{display:inline-block;font-size:10.5px;font-weight:800;line-height:16px;padding:0 6px;border-radius:6px;
+  background:var(--hover-bg);color:var(--text-sub);border:1px solid var(--border)}
+.vbadge.new{background:#E7F3EC;color:#1E6B45;border-color:#B9DCC6}
+.vbadge.changed{background:var(--pill-bg);color:var(--primary-600);border-color:#F2C4B8}
+.vbadge.removed{background:var(--hover-bg);color:var(--text-faint);text-decoration:line-through}
+.vbadge.own{background:var(--grp-bg);color:var(--jade);border-color:transparent}
+.vbadge.tab{background:var(--grp-bg);color:var(--jade);border-color:transparent}
+[data-theme="dark"] .vbadge.new{background:#20382B;color:#8FD3A8;border-color:#2F5A41}
+[data-theme="dark"] .vbadge.changed{border-color:#5A3A31}
+.vbadge.oncard{position:absolute;top:6px;left:6px;z-index:3;pointer-events:auto}
+.scene.v-new .thumb{outline:2.5px solid #3C9A68;outline-offset:1px}
+.scene.v-changed .thumb{outline:2.5px solid var(--primary);outline-offset:1px}
+.scene.v-inherited .thumb,.scene.v-inherited .cap,.scene.v-inherited .snote{opacity:.42}
+.scene.v-inherited:hover .thumb,.scene.v-inherited:hover .cap{opacity:.85}
+.tvdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:5px;vertical-align:middle}
+.tvdot.new{background:#3C9A68}
+.tvdot.changed{background:var(--primary)}
+.tvfrom{font-size:10px;font-weight:700;color:var(--text-faint);margin-left:5px}
+#workarea{position:relative}
+.verpanel{position:absolute;left:14px;bottom:14px;z-index:30;max-width:420px;max-height:46%;overflow:auto;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);
+  padding:10px 12px;font-size:12px;color:var(--text-sub)}
+.vp-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;color:var(--ink)}
+.vp-sum{color:var(--text-faint);flex:1}
+.vp-x{cursor:pointer;color:var(--text-faint)}
+.vp-x:hover{color:var(--primary-600)}
+.vp-empty{color:var(--text-faint);padding:2px 0}
+.vp-sec{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:4px 0;border-top:1px solid var(--border-soft)}
+.vp-it{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:6px;background:var(--hover-bg)}
+.vp-it em{font-style:normal;color:var(--text-faint);font-size:11px}
+.vp-it.gone{color:var(--text-faint);text-decoration:line-through}
+.vp-rev{cursor:pointer;color:var(--jade);font-weight:800;text-decoration:none;display:inline-block;margin-left:2px}
+.vp-rev:hover{color:var(--primary-600)}
