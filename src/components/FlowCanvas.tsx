@@ -73,7 +73,7 @@ interface LabelDrag {
 }
 
 function CanvasInner({ view }: { view: string }) {
-  const { doc, ui, setUI, appTheme, server, thumbVer } = useStore();
+  const { doc, ui, setUI, appTheme, server, thumbVer, verMeta } = useStore();
   const acts = useActions();
   const { screenToFlowPosition, fitView, setViewport, getViewport, zoomIn, zoomOut } = useReactFlow();
   const dark = appTheme === 'dark';
@@ -522,7 +522,8 @@ function CanvasInner({ view }: { view: string }) {
 
   /* ---- 미니맵 실사 썸네일 ---- */
   const miniInfo = useMemo(() => {
-    const m: Record<string, { kind: string; url?: string }> = {};
+    const m: Record<string, { kind: string; url?: string; diff?: string }> = {};
+    const showDiff = !!(ui.verDiff && verMeta.enabled && verMeta.base);
     if (!doc) return m;
     for (const n of layout.nodes) {
       if (n.type === 'scene') {
@@ -532,24 +533,30 @@ function CanvasInner({ view }: { view: string }) {
         const p = sc ? themePath(sc, theme) : null;
         m[n.id] = {
           kind: 'scene',
-          url: server?.canThumb && p ? thumbUrl(p, (sc?.updated || '') + '-' + thumbVer) : undefined
+          url: server?.canThumb && p ? thumbUrl(p, (sc?.updated || '') + '-' + thumbVer) : undefined,
+          // diff 표시 중이면 신규·변경 Scene을 미니맵에서도 같은 색으로 테두리
+          diff: showDiff && verMeta.scene[sid] && verMeta.scene[sid].status !== 'same' ? verMeta.scene[sid].status : undefined
         };
       } else {
         m[n.id] = { kind: n.type };
       }
     }
     return m;
-  }, [layout, doc, ui.sceneTheme, ui.globalTheme, server, thumbVer]);
+  }, [layout, doc, ui.sceneTheme, ui.globalTheme, server, thumbVer, ui.verDiff, verMeta]);
 
   const MiniNode = useCallback((p: any) => {
     const info = miniInfo[p.id];
     if (!info) return null;
     if (info.kind === 'scene') {
-      return info.url
+      const body = info.url
         ? <image href={info.url} x={p.x} y={p.y} width={p.width} height={p.height}
             preserveAspectRatio="xMidYMin slice" />
         : <rect x={p.x} y={p.y} width={p.width} height={p.height} rx={10}
             fill={dark ? '#8A5A50' : '#EBB3A6'} />;
+      if (!info.diff) return body;
+      const c = info.diff === 'new' ? (dark ? '#3DCB7E' : '#169A55') : (dark ? '#6C93FF' : '#2F64F0');
+      return <g>{body}<rect x={p.x - 14} y={p.y - 14} width={p.width + 28} height={p.height + 28} rx={16}
+        fill="none" stroke={c} strokeWidth={22} /></g>;
     }
     if (info.kind === 'bracket') {
       return <rect x={p.x} y={p.y} width={p.width} height={p.height} rx={6}

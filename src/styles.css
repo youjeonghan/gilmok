@@ -1,4 +1,6 @@
 :root{
+  --d-new:#169A55; --d-new-bg:#E3F6EA; --d-new-glow:rgba(22,154,85,.38);
+  --d-chg:#2F64F0; --d-chg-bg:#E6EDFF; --d-chg-glow:rgba(47,100,240,.38);
   --primary:#E8563C; --primary-600:#C9432C; --jade:#1F6E63;
   --ink:#20282A; --paper:#FBFAF8; --mist:#7E8B88; --bg:#F4F2ED;
   --surface:#FFFFFF; --border:#DDD9D0; --border-strong:#E5E2DB; --border-soft:#E7E3DC;
@@ -7,6 +9,8 @@
   --dots:#E1DDD3;
 }
 [data-theme="dark"]{
+  --d-new:#3DCB7E; --d-new-bg:#1E3A2A; --d-new-glow:rgba(61,203,126,.40);
+  --d-chg:#6C93FF; --d-chg-bg:#22304F; --d-chg-glow:rgba(108,147,255,.42);
   --primary:#E8563C; --primary-600:#E06A52; --jade:#4DA394;
   --ink:#E8E6E1; --paper:#26292B; --mist:#98A29F; --bg:#1B1D1F;
   --surface:#26292B; --border:#3C4043; --border-strong:#35393C; --border-soft:#34383A;
@@ -371,21 +375,25 @@ dialog::backdrop{background:rgba(10,12,13,.5)}
 .tchip.wide{width:auto;padding:0 7px}
 .vbadge{display:inline-block;font-size:10.5px;font-weight:800;line-height:16px;padding:0 6px;border-radius:6px;
   background:var(--hover-bg);color:var(--text-sub);border:1px solid var(--border)}
-.vbadge.new{background:#E7F3EC;color:#1E6B45;border-color:#B9DCC6}
-.vbadge.changed{background:var(--pill-bg);color:var(--primary-600);border-color:#F2C4B8}
+.vbadge.new{background:var(--d-new-bg);color:var(--d-new);border-color:var(--d-new)}
+.vbadge.changed{background:var(--d-chg-bg);color:var(--d-chg);border-color:var(--d-chg)}
 .vbadge.removed{background:var(--hover-bg);color:var(--text-faint);text-decoration:line-through}
 .vbadge.own{background:var(--grp-bg);color:var(--jade);border-color:transparent}
 .vbadge.tab{background:var(--grp-bg);color:var(--jade);border-color:transparent}
-[data-theme="dark"] .vbadge.new{background:#20382B;color:#8FD3A8;border-color:#2F5A41}
-[data-theme="dark"] .vbadge.changed{border-color:#5A3A31}
-.vbadge.oncard{position:absolute;top:6px;left:6px;z-index:3;pointer-events:auto}
-.scene.v-new .thumb{outline:2.5px solid #3C9A68;outline-offset:1px}
-.scene.v-changed .thumb{outline:2.5px solid var(--primary);outline-offset:1px}
+.vbadge.oncard{position:absolute;top:8px;left:8px;z-index:3;pointer-events:auto}
+/* 캔버스 카드 위 신규·변경 배지 — 화살표선(주황)과 겹치지 않는 색으로 꽉 채워 크게 */
+.vbadge.oncard.new,.vbadge.oncard.changed{font-size:12.5px;line-height:20px;padding:1px 10px;border-radius:999px;color:#fff;border:0;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.vbadge.oncard.new{background:var(--d-new)}
+.vbadge.oncard.changed{background:var(--d-chg)}
+.scene.v-new .thumb{outline:6px solid var(--d-new);outline-offset:4px;box-shadow:0 0 0 16px var(--d-new-glow)}
+.scene.v-changed .thumb{outline:6px solid var(--d-chg);outline-offset:4px;box-shadow:0 0 0 16px var(--d-chg-glow)}
+.scene.v-new .cap{color:var(--d-new)}
+.scene.v-changed .cap{color:var(--d-chg)}
 .scene.v-inherited .thumb,.scene.v-inherited .cap,.scene.v-inherited .snote{opacity:.42}
 .scene.v-inherited:hover .thumb,.scene.v-inherited:hover .cap{opacity:.85}
 .tvdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:5px;vertical-align:middle}
-.tvdot.new{background:#3C9A68}
-.tvdot.changed{background:var(--primary)}
+.tvdot.new{background:var(--d-new)}
+.tvdot.changed{background:var(--d-chg)}
 .tvfrom{font-size:10px;font-weight:700;color:var(--text-faint);margin-left:5px}
 #workarea{position:relative}
 .verpanel{position:absolute;left:14px;bottom:14px;z-index:30;max-width:420px;max-height:46%;overflow:auto;
