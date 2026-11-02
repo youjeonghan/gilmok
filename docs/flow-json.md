@@ -61,9 +61,9 @@
 {
   "versions": [                                   // 첫 항목 = 루트(기준 버전). 부모는 반드시 배열에서 자기보다 앞
     { "id": "1.0", "title": "현행", "date": "2026-11-02" },
-    { "id": "kemit", "parent": "1.0", "title": "케밋 참고안" },          // 1.0에서 갈라짐
-    { "id": "cmb", "parent": "1.0", "title": "CMB 참고안", "tabOrder": ["t-signup", "main"] },  // 1.0에서 또 갈라짐 = 브랜치
-    { "id": "cmb.1", "parent": "cmb" }                                     // cmb 위에 쌓음
+    { "id": "plan-a", "parent": "1.0", "title": "A안" },          // 1.0에서 갈라짐
+    { "id": "plan-b", "parent": "1.0", "title": "B안", "tabOrder": ["t-signup", "main"] },  // 1.0에서 또 갈라짐 = 브랜치
+    { "id": "plan-b.1", "parent": "plan-b" }                                     // plan-b 위에 쌓음
   ],
 
   // 최상위 tabs / flows / layout / scenes = 루트(1.0)
@@ -71,15 +71,15 @@
     "chat": {
       "title": "채팅", "file": "scenes/screens/07-chat.html",
       "rev": {
-        "kemit": { "file": "scenes/screens/07-chat@kemit.html" },  // 그 버전에서 바뀐 필드만
-        "cmb.1": { "removed": true }                                // 그 버전에서 삭제
+        "plan-a": { "file": "scenes/screens/07-chat@plan-a.html" },  // 그 버전에서 바뀐 필드만
+        "plan-b.1": { "removed": true }                                // 그 버전에서 삭제
       }
     },
-    "date-card": { "title": "같이 하기 카드", "file": null, "since": "cmb" }  // cmb에서 신규 — cmb와 그 자손에만 보임
+    "new-card": { "title": "새 카드", "file": null, "since": "plan-b" }  // plan-b에서 신규 — plan-b와 그 자손에만 보임
   },
 
   "versionTabs": {                                 // 그 버전에서 바뀐 Tab 구조 — Tab 단위 통째
-    "kemit": {
+    "plan-a": {
       "main": { "tab": { "id": "main", "title": "메인", "start": "landing" }, "flows": [ /* … */ ], "layout": { "offsets": {} } },
       "t-old": { "removed": true }
     }

@@ -60,7 +60,7 @@ export function VersionBar() {
         options: rows.map(x => ({ label: '　'.repeat(x.depth) + 'v' + x.v.id + (x.v.title ? ' · ' + x.v.title : ''), value: x.v.id }))
       },
       { key: 'id', label: '버전 이름', value: suggestNextId(vs, p0, raw) },
-      { key: 'title', label: '설명 (선택)', placeholder: '예: 결제 개편 / 케밋 참고안' }
+      { key: 'title', label: '설명 (선택)', placeholder: '예: 결제 개편 / A안' }
     ]);
     if (!r || !r.id) return;
     const id = String(r.id).trim();
