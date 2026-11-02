@@ -8,7 +8,7 @@
 
 흐름이 갈라지는 "길목"을 내려다보는 도구 · 저장소 `gilmok` · 설치 파일 `gilmok-setup-*.exe`
 
-![version](https://img.shields.io/badge/version-0.7.x-E8563C) ![platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS-1F6E63) ![stack](https://img.shields.io/badge/Electron%20%2B%20React%20Flow-TypeScript-20282A)
+![version](https://img.shields.io/badge/version-0.9.x-E8563C) ![platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS-1F6E63) ![stack](https://img.shields.io/badge/Electron%20%2B%20React%20Flow-TypeScript-20282A)
 
 <img src="docs/shot-main.png" width="920" alt="길목 메인 캔버스 — 분기 라인 위 Scene 프리뷰" />
 
@@ -34,6 +34,7 @@
 - **📂 프로젝트 메뉴** — 현재 폴더 확인·탐색기 열기·최근 프로젝트 전환·다른 폴더 선택을 버튼 하나로
 - **⧉ 새 창 (Ctrl/Cmd+Shift+N)** — 창을 하나 더 띄워 다른 프로젝트를 나란히 연다. 창마다 프로젝트·터미널·감시가 독립
 - **Scene 갤러리** — 그룹(카테고리)별 썸네일 카탈로그
+- **⎇ 버전 브랜치** — git처럼 어느 버전에서든 갈라져 대안 플로우를 따로 다듬고(바뀌지 않은 건 상속), 아무 버전이나 기준으로 diff + 좌우 나란히 비교
 - **캡처 씬** — 타 서비스 화면 캡처(이미지)를 `captures/`에 두고 `kind: "capture"`로 등록하면 HTML 씬과 똑같이 플로우에 배치. 자체 화면이 나오면 `file`만 바꿔 교체
 - **claude.ai/design 연동(선택)** — Scene별 편집 딥링크, 디자인 시스템 바로가기, flow-sync 스킬 설치
 - **⟳ 앱 내 업데이트 확인** — 새 릴리스 확인 후 설치 파일 수동 업데이트(서명/공증 불필요 구조)
@@ -120,7 +121,7 @@ gilmok-server <데이터폴더>   # 브라우저로 열림, flow.json 자동 저
 
 ## 버전 정책 · 릴리스
 
-**0.x대에서 1.0을 준비 중** — 패치는 `0.7.x`, 다음 기능 단위는 `0.8.0`, 정식 출시가 `1.0.0`. (구 `7.x` 태그는 히스토리)
+**0.x대에서 1.0을 준비 중** — 패치는 `0.9.x`, 다음 기능 단위는 `0.10.0`, 정식 출시가 `1.0.0`. (구 `7.x` 태그는 히스토리)
 
 태그를 푸시하면 GitHub Actions가 Windows 인스톨러(NSIS)·mac dmg/zip·Go 서버 바이너리를 빌드해 Release에 첨부한다:
 

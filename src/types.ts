@@ -1,4 +1,4 @@
-/* flow.json 스키마 (v4) — v3 + 버전 레이어(versions·rev·since·versionTabs, 선택). 버전 규칙은 versions.ts.
+/* flow.json 스키마 (v4) — v3 + 버전 레이어(versions·rev·since·versionTabs, 선택 — v0.9.0부터 versions[].parent로 브랜치 트리). 버전 규칙은 versions.ts.
    kind는 v0.7.14에서 추가 — 없던 문서는 normalize가 'design'으로 보정한다 */
 import type { Version, SceneRev, TabOverride } from './versions';
 
@@ -97,6 +97,8 @@ export interface UIState {
   /** 버전 오버레이 — 상속 표시 / 직전 버전 대비 diff (보고 싶을 때만 켬) */
   verInherit?: boolean;
   verDiff?: boolean;
+  /** diff 비교 기준 버전 (없으면 부모 버전) */
+  verBase?: string;
 }
 
 export function normalize(d: any): FlowDoc {

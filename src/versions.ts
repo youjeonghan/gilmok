@@ -1,14 +1,19 @@
-/* 버전 레이어 — flow.json v4
+/* 버전 레이어 — flow.json v4 (v0.9.0: 브랜치 트리)
  *
- * 저장 형태(raw): 최상위 scenes/tabs/flows/layout = 기준 버전(versions[0]).
+ * 버전은 git처럼 트리다. 각 버전은 parent(부모 버전 id)를 가지며, 첫 항목(versions[0])이 루트 = 기준 버전.
+ *   - parent가 없는 구 문서(v0.8 일자형)는 "배열의 바로 앞 버전"을 부모로 본다 → 그대로 선형 체인.
+ *   - 어떤 버전이든 부모로 골라 새 버전을 만들 수 있다 → 한 부모에 자식이 여럿 = 브랜치.
+ *
+ * 저장 형태(raw): 최상위 scenes/tabs/flows/layout = 기준 버전(루트).
  *   - 씬: rev[버전] = 그 버전에서 바뀐 필드만 / { removed: true } = 그 버전에서 삭제
- *         since = 그 버전에서 새로 생긴 씬(최상위 필드가 그 버전 정의)
+ *         since = 그 버전에서 새로 생긴 씬(최상위 필드가 그 버전 정의) — 그 버전의 자손에서만 보인다
  *   - 탭: versionTabs[버전][탭] = 그 버전에서 바뀐 탭 구조 통째(탭·Branch·배치) / { removed: true }
  *   - 탭 순서: versions[i].tabOrder (상속 순서와 다를 때만)
- * 해석 규칙: "선택 버전 이하에서 가장 최근 정의를 쓴다" — 바뀌지 않은 건 이전 버전 것을 그대로 상속.
+ * 해석 규칙: "루트 → 선택 버전 경로(체인) 위에서 가장 최근 정의를 쓴다" — 다른 브랜치의 기록은 보이지 않는다.
  *
- * 화면은 resolve()가 만든 평범한 FlowDoc만 다루고, 편집 결과는 absorb()가 이전 버전과 비교해
- * 달라진 씬·탭만 현재 버전 레이어에 기록한다(탭은 copy-on-write). */
+ * 화면은 resolve()가 만든 평범한 FlowDoc만 다루고, 편집 결과는 absorb()가 부모 체인과 비교해
+ * 달라진 씬·탭만 현재 버전 레이어에 기록한다(탭은 copy-on-write).
+ * 비교(diff)는 부모가 기본이지만 아무 버전이나 기준(base)으로 지정할 수 있다 — versionMeta(raw, cur, base). */
 import type { FlowDoc, Scene, Tab, FlowLane, TabLayout } from './types';
 
 export interface Version {
@@ -16,6 +21,8 @@ export interface Version {
   title?: string;
   date?: string;
   note?: string;
+  /** 부모 버전 id — 없으면 배열의 바로 앞 버전(구 일자형 호환). 루트(versions[0])는 무시 */
+  parent?: string;
   /** 상속 순서와 다를 때만 저장되는 탭 순서 */
   tabOrder?: string[];
 }
@@ -48,11 +55,67 @@ export function effectiveVersion(raw: FlowDoc, vid: string | null | undefined): 
 const vIdx = (raw: FlowDoc, vid: string | null | undefined) =>
   (raw.versions || []).findIndex(v => v.id === vid);
 
-/** 씬의 since 인덱스 — 없거나 모르는 버전이면 기준(0) */
-const sinceIdx = (raw: FlowDoc, s: Scene) => {
-  if (!s.since) return 0;
-  const i = vIdx(raw, s.since);
-  return i < 0 ? 0 : i;
+/* ---------- 트리 ---------- */
+
+/** 부모 버전 id (루트면 null) — parent가 없거나 잘못됐으면 배열의 바로 앞 버전 */
+export function parentOf(raw: FlowDoc, vid: string): string | null {
+  const vs = raw.versions || [];
+  const i = vIdx(raw, vid);
+  if (i <= 0) return null;
+  const p = vs[i].parent;
+  // 부모는 반드시 배열에서 앞에 있어야 한다(순환 방지) — 아니면 일자형 폴백
+  if (p && p !== vid) {
+    const pi = vIdx(raw, p);
+    if (pi >= 0 && pi < i) return p;
+  }
+  return vs[i - 1].id;
+}
+
+/** 루트 → vid 경로 (버전 id 배열). 모르는 버전이면 [] */
+export function chainOf(raw: FlowDoc, vid: string | null | undefined): string[] {
+  if (vIdx(raw, vid) < 0) return [];
+  const out: string[] = [];
+  let cur: string | null = vid as string;
+  while (cur && out.length <= (raw.versions || []).length) {
+    out.unshift(cur);
+    cur = parentOf(raw, cur);
+  }
+  return out;
+}
+
+export function childrenOf(raw: FlowDoc, vid: string): string[] {
+  return (raw.versions || []).filter(v => v.id !== vid && parentOf(raw, v.id) === vid).map(v => v.id);
+}
+
+/** 트리를 깊이 우선으로 펼친 목록 — 메뉴 표시용 (depth = 들여쓰기, last = 형제 중 마지막) */
+export function treeRows(raw: FlowDoc): { v: Version; depth: number; guides: boolean[]; last: boolean }[] {
+  const vs = raw.versions || [];
+  if (!vs.length) return [];
+  const rows: { v: Version; depth: number; guides: boolean[]; last: boolean }[] = [];
+  const walk = (id: string, depth: number, guides: boolean[], last: boolean) => {
+    const v = vs.find(x => x.id === id)!;
+    rows.push({ v, depth, guides, last });
+    const kids = childrenOf(raw, id);
+    kids.forEach((k, i) => walk(k, depth + 1, [...guides, !last], i === kids.length - 1));
+  };
+  walk(vs[0].id, 0, [], true);
+  return rows;
+}
+
+/** 공통 조상 (두 체인이 마지막으로 겹치는 버전) */
+export function commonAncestor(raw: FlowDoc, a: string, b: string): string | null {
+  const ca = chainOf(raw, a), cb = new Set(chainOf(raw, b));
+  for (let i = ca.length - 1; i >= 0; i--) if (cb.has(ca[i])) return ca[i];
+  return null;
+}
+
+/* ---------- 해석 ---------- */
+
+/** 씬이 처음 생긴 버전 — 없거나 모르는 버전이면 루트 */
+const sinceOf = (raw: FlowDoc, s: Scene): string => {
+  const vs = raw.versions || [];
+  if (s.since && vIdx(raw, s.since) >= 0) return s.since;
+  return vs.length ? vs[0].id : '';
 };
 
 const pickFields = (s: Partial<Scene>): Scene => ({
@@ -67,17 +130,17 @@ const pickFields = (s: Partial<Scene>): Scene => ({
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-/** k번째 버전에서의 씬 (없으면 null) */
-export function sceneAt(raw: FlowDoc, id: string, k: number): Scene | null {
+/** 체인 끝 버전에서의 씬 (없으면 null) */
+export function sceneOn(raw: FlowDoc, id: string, chain: string[]): Scene | null {
   const s = raw.scenes[id];
-  const vs = raw.versions || [];
-  if (!s || k < 0) return null;
-  const si = sinceIdx(raw, s);
-  if (si > k) return null;
+  if (!s || !chain.length) return null;
+  if (!hasVersions(raw)) return pickFields(s);
+  const si = chain.indexOf(sinceOf(raw, s));
+  if (si < 0) return null; // 다른 브랜치에서 생긴 씬
   const cur = pickFields(s);
   let alive = true;
-  for (let i = si; i <= k && i < vs.length; i++) {
-    const r = s.rev?.[vs[i].id];
+  for (let i = si; i < chain.length; i++) {
+    const r = s.rev?.[chain[i]];
     if (!r) continue;
     if (r.removed) { alive = false; continue; }
     alive = true;
@@ -88,16 +151,20 @@ export function sceneAt(raw: FlowDoc, id: string, k: number): Scene | null {
   return alive ? cur : null;
 }
 
+/** 버전 vid에서의 씬 (없으면 null) */
+export const sceneAt = (raw: FlowDoc, id: string, vid: string | null): Scene | null =>
+  sceneOn(raw, id, chainOf(raw, vid));
+
 const cleanLayout = (l?: TabLayout): TabLayout | undefined =>
   l && l.offsets && Object.keys(l.offsets).length ? l : undefined;
 
 const normFlow = (f: FlowLane): FlowLane => ({ ...f, brackets: f.brackets || [], note: f.note || '' });
 
-/** k번째 버전에서의 탭 구조 (없으면 null) */
-function tabStructAt(raw: FlowDoc, tid: string, k: number): TabStruct | null {
-  const vs = raw.versions || [];
-  for (let i = Math.min(k, vs.length - 1); i >= 1; i--) {
-    const o = raw.versionTabs?.[vs[i].id]?.[tid];
+/** 체인 끝 버전에서의 탭 구조 (없으면 null) */
+function tabStructOn(raw: FlowDoc, tid: string, chain: string[]): TabStruct | null {
+  if (!chain.length) return null;
+  for (let i = chain.length - 1; i >= 1; i--) {
+    const o = raw.versionTabs?.[chain[i]]?.[tid];
     if (!o) continue;
     if (o.removed) return null;
     const baseTab = raw.tabs.find(t => t.id === tid);
@@ -107,7 +174,6 @@ function tabStructAt(raw: FlowDoc, tid: string, k: number): TabStruct | null {
       layout: cleanLayout(o.layout)
     };
   }
-  if (k < 0) return null;
   const t = raw.tabs.find(x => x.id === tid);
   if (!t) return null;
   return {
@@ -117,28 +183,27 @@ function tabStructAt(raw: FlowDoc, tid: string, k: number): TabStruct | null {
   };
 }
 
-/** k번째 버전의 탭 순서 (extraTabOrderSkip = 이 인덱스의 tabOrder는 무시 — 상속 순서 계산용) */
-function tabOrderAt(raw: FlowDoc, k: number, skipOrderAt = -1): string[] {
-  const vs = raw.versions || [];
+/** 체인 끝 버전의 탭 순서 (skipLastOrder = 체인 끝 버전의 tabOrder는 무시 — 상속 순서 계산용) */
+function tabOrderOn(raw: FlowDoc, chain: string[], skipLastOrder = false): string[] {
   let order = raw.tabs.map(t => t.id);
-  for (let i = 1; i <= k && i < vs.length; i++) {
-    const ov = raw.versionTabs?.[vs[i].id] || {};
+  for (let i = 1; i < chain.length; i++) {
+    const ov = raw.versionTabs?.[chain[i]] || {};
     Object.keys(ov).forEach(tid => { if (!order.includes(tid)) order.push(tid); });
-    const to = vs[i].tabOrder;
-    if (to && i !== skipOrderAt) {
+    const to = raw.versions!.find(v => v.id === chain[i])?.tabOrder;
+    if (to && !(skipLastOrder && i === chain.length - 1)) {
       order = [...to.filter(t => order.includes(t)), ...order.filter(t => !to.includes(t))];
     }
   }
   return order;
 }
 
-function docAt(raw: FlowDoc, k: number): FlowDoc {
+function docOn(raw: FlowDoc, chain: string[]): FlowDoc {
   const scenes: Record<string, Scene> = {};
   Object.keys(raw.scenes).forEach(id => {
-    const s = sceneAt(raw, id, k);
+    const s = sceneOn(raw, id, chain);
     if (s) scenes[id] = s;
   });
-  if (k <= 0) {
+  if (chain.length <= 1) {
     // 기준 버전 = 최상위 그대로 (흐름 순서까지 보존해 저장 시 불필요한 diff가 생기지 않게)
     return structuredClone({
       version: raw.version, service: raw.service,
@@ -149,8 +214,8 @@ function docAt(raw: FlowDoc, k: number): FlowDoc {
   const tabs: Tab[] = [];
   const flows: FlowLane[] = [];
   const layout: Record<string, TabLayout> = {};
-  tabOrderAt(raw, k).forEach(tid => {
-    const st = tabStructAt(raw, tid, k);
+  tabOrderOn(raw, chain).forEach(tid => {
+    const st = tabStructOn(raw, tid, chain);
     if (!st) return;
     tabs.push(st.tab);
     flows.push(...st.flows);
@@ -162,7 +227,7 @@ function docAt(raw: FlowDoc, k: number): FlowDoc {
 /** 선택 버전으로 해석한 평범한 FlowDoc (버전 필드 없음 — 화면·액션은 이것만 다룬다) */
 export function resolve(raw: FlowDoc, vid: string | null): FlowDoc {
   if (!hasVersions(raw)) return raw;
-  return docAt(raw, vIdx(raw, effectiveVersion(raw, vid)));
+  return docOn(raw, chainOf(raw, effectiveVersion(raw, vid)));
 }
 
 /* ---------- 편집 결과 → 현재 버전 레이어에 기록 ---------- */
@@ -175,7 +240,7 @@ function structsOf(d: FlowDoc): Record<string, TabStruct> {
   return m;
 }
 
-/** 새 씬 id가 다른 버전에만 있는 씬과 겹치면 새 id로 바꾸고 참조도 함께 바꾼다 */
+/** 새 씬 id가 다른 버전(브랜치)에만 있는 씬과 겹치면 새 id로 바꾸고 참조도 함께 바꾼다 */
 function renameScene(d: FlowDoc, from: string, to: string) {
   d.scenes[to] = d.scenes[from];
   delete d.scenes[from];
@@ -189,9 +254,10 @@ function renameScene(d: FlowDoc, from: string, to: string) {
 export function absorb(raw: FlowDoc, vid: string | null, before: FlowDoc, after0: FlowDoc): FlowDoc {
   const out = structuredClone(raw);
   const after = structuredClone(after0);
-  const vs = out.versions!;
-  const k = vIdx(out, effectiveVersion(out, vid));
-  const V = vs[k].id;
+  const V = effectiveVersion(out, vid)!;
+  const chain = chainOf(out, V);
+  const pchain = chain.slice(0, -1);
+  const isRoot = chain.length <= 1;
   out.service = after.service;
 
   // ---- 씬 id 충돌 정리
@@ -207,23 +273,23 @@ export function absorb(raw: FlowDoc, vid: string | null, before: FlowDoc, after0
   ids.forEach(id => {
     const b = before.scenes[id], a = after.scenes[id];
     if (a && !b) {
-      out.scenes[id] = k === 0 ? pickFields(a) : { ...pickFields(a), since: V };
+      out.scenes[id] = isRoot ? pickFields(a) : { ...pickFields(a), since: V };
       return;
     }
     const s = out.scenes[id];
     if (!s) return;
-    const si = sinceIdx(out, s);
+    const own = sinceOf(out, s) === V; // 이 버전에서 태어난 씬 — 최상위 필드가 곧 이 버전 정의
     if (b && !a) {
-      if (si === k) delete out.scenes[id];
+      if (own) delete out.scenes[id];
       else { s.rev = s.rev || {}; s.rev[V] = { removed: true }; }
       return;
     }
     if (same(pickFields(b), pickFields(a))) return;
-    if (si === k) {
+    if (own) {
       FIELDS.forEach(f => { (s as any)[f] = (pickFields(a) as any)[f]; });
       return;
     }
-    const inh = sceneAt(raw, id, k - 1);
+    const inh = sceneOn(raw, id, pchain);
     const pa = pickFields(a);
     const diff: SceneRev = {};
     FIELDS.forEach(f => {
@@ -236,7 +302,7 @@ export function absorb(raw: FlowDoc, vid: string | null, before: FlowDoc, after0
   });
 
   // ---- 탭·Branch·배치
-  if (k === 0) {
+  if (isRoot) {
     out.tabs = after.tabs;
     out.flows = after.flows;
     if (after.layout && Object.keys(after.layout).length) out.layout = after.layout;
@@ -248,7 +314,7 @@ export function absorb(raw: FlowDoc, vid: string | null, before: FlowDoc, after0
   const ov = (out.versionTabs[V] = out.versionTabs[V] || {});
   new Set([...Object.keys(bT), ...Object.keys(aT)]).forEach(tid => {
     if (same(bT[tid], aT[tid])) return;
-    const inh = tabStructAt(raw, tid, k - 1);
+    const inh = tabStructOn(raw, tid, pchain);
     const a = aT[tid];
     if (!a) {
       if (inh) ov[tid] = { removed: true };
@@ -262,10 +328,11 @@ export function absorb(raw: FlowDoc, vid: string | null, before: FlowDoc, after0
   if (!Object.keys(ov).length) delete out.versionTabs[V];
   if (!Object.keys(out.versionTabs).length) delete out.versionTabs;
 
-  const natural = tabOrderAt(out, k, k).filter(t => aT[t]);
+  const natural = tabOrderOn(out, chain, true).filter(t => aT[t]);
   const want = after.tabs.map(t => t.id);
-  if (same(natural, want)) delete vs[k].tabOrder;
-  else vs[k].tabOrder = want;
+  const vr = out.versions!.find(v => v.id === V)!;
+  if (same(natural, want)) delete vr.tabOrder;
+  else vr.tabOrder = want;
   return out;
 }
 
@@ -273,69 +340,89 @@ export function absorb(raw: FlowDoc, vid: string | null, before: FlowDoc, after0
 
 export type VerStatus = 'new' | 'changed' | 'same';
 
+export interface SceneVerInfo {
+  /** 비교 기준(base) 대비 상태 — diff 오버레이 */
+  status: VerStatus;
+  /** 부모 대비 상태 — 이 버전에서 정의했는지(상속 오버레이·되돌리기) */
+  own: VerStatus;
+  /** 지금 정의가 마지막으로 바뀐 버전 (체인 위) */
+  from: string;
+}
+
 export interface VersionMeta {
   enabled: boolean;
   versions: Version[];
   cur: string | null;
-  idx: number;
-  prev: Version | null;
-  /** 현재 버전의 각 씬: 직전 대비 상태 + 지금 정의가 마지막으로 바뀐 버전 */
-  scene: Record<string, { status: VerStatus; from: string }>;
-  tab: Record<string, { status: VerStatus; from: string }>;
-  /** 직전 버전엔 있었는데 이 버전에서 사라진 것 */
+  /** 루트로부터의 깊이 (루트 = 0) */
+  depth: number;
+  chain: string[];
+  parent: Version | null;
+  /** 비교 기준 버전 — 지정 안 하면 부모. 루트에서 지정 안 하면 null */
+  base: Version | null;
+  /** 기준을 사용자가 직접 골랐는지 (부모가 아닌 버전) */
+  baseCustom: boolean;
+  scene: Record<string, SceneVerInfo>;
+  tab: Record<string, SceneVerInfo>;
+  /** 기준 버전엔 있었는데 이 버전엔 없는 것 */
   removedScenes: { id: string; title: string }[];
   removedTabs: { id: string; title: string }[];
 }
 
 export const EMPTY_META: VersionMeta = {
-  enabled: false, versions: [], cur: null, idx: -1, prev: null,
+  enabled: false, versions: [], cur: null, depth: 0, chain: [], parent: null, base: null, baseCustom: false,
   scene: {}, tab: {}, removedScenes: [], removedTabs: []
 };
 
-export function versionMeta(raw: FlowDoc | null, vid: string | null): VersionMeta {
+export function versionMeta(raw: FlowDoc | null, vid: string | null, baseVid?: string | null): VersionMeta {
   if (!raw || !hasVersions(raw)) return EMPTY_META;
   const vs = raw.versions!;
   const cur = effectiveVersion(raw, vid)!;
-  const k = vIdx(raw, cur);
+  const chain = chainOf(raw, cur);
+  const pid = parentOf(raw, cur);
+  const custom = !!baseVid && baseVid !== cur && vIdx(raw, baseVid) >= 0 && baseVid !== pid;
+  const bid = custom ? baseVid! : pid;
+  const find = (id: string | null) => (id ? vs.find(v => v.id === id) || null : null);
   const meta: VersionMeta = {
-    enabled: true, versions: vs, cur, idx: k, prev: k > 0 ? vs[k - 1] : null,
+    enabled: true, versions: vs, cur, depth: chain.length - 1, chain,
+    parent: find(pid), base: find(bid), baseCustom: custom,
     scene: {}, tab: {}, removedScenes: [], removedTabs: []
   };
+  const bchain = bid ? chainOf(raw, bid) : [];
+  const pchain = chain.slice(0, -1);
+  const st = (now: unknown, before: unknown, has: boolean): VerStatus =>
+    !has ? 'same' : !before ? 'new' : !same(now, before) ? 'changed' : 'same';
+
   Object.keys(raw.scenes).forEach(id => {
-    const now = sceneAt(raw, id, k);
-    const before = sceneAt(raw, id, k - 1);
+    const now = sceneOn(raw, id, chain);
+    const before = bchain.length ? sceneOn(raw, id, bchain) : null;
     if (now) {
-      // 지금 정의가 마지막으로 바뀐 버전 = 정의가 직전 버전과 달라진 가장 최근 인덱스
-      let from = 0;
-      for (let i = k; i >= 1; i--) {
-        if (!same(sceneAt(raw, id, i), sceneAt(raw, id, i - 1))) { from = i; break; }
+      const par = pchain.length ? sceneOn(raw, id, pchain) : null;
+      // 지금 정의가 마지막으로 바뀐 버전 = 체인 위에서 정의가 바로 앞과 달라진 가장 최근 지점
+      let from = chain[0];
+      for (let i = chain.length - 1; i >= 1; i--) {
+        if (!same(sceneOn(raw, id, chain.slice(0, i + 1)), sceneOn(raw, id, chain.slice(0, i)))) { from = chain[i]; break; }
       }
-      meta.scene[id] = {
-        status: k > 0 && !before ? 'new' : k > 0 && !same(now, before) ? 'changed' : 'same',
-        from: vs[from].id
-      };
+      meta.scene[id] = { status: st(now, before, !!bchain.length), own: st(now, par, !!pchain.length), from };
     } else if (before) {
       meta.removedScenes.push({ id, title: before.title || id });
     }
   });
-  const tidsNow = tabOrderAt(raw, k);
-  const tidsPrev = k > 0 ? tabOrderAt(raw, k - 1) : [];
+  const tidsNow = tabOrderOn(raw, chain);
+  const tidsBase = bchain.length ? tabOrderOn(raw, bchain) : [];
   tidsNow.forEach(tid => {
-    const now = tabStructAt(raw, tid, k);
+    const now = tabStructOn(raw, tid, chain);
     if (!now) return;
-    const before = k > 0 ? tabStructAt(raw, tid, k - 1) : null;
-    let from = 0;
-    for (let i = k; i >= 1; i--) {
-      if (!same(tabStructAt(raw, tid, i), tabStructAt(raw, tid, i - 1))) { from = i; break; }
+    const before = bchain.length ? tabStructOn(raw, tid, bchain) : null;
+    const par = pchain.length ? tabStructOn(raw, tid, pchain) : null;
+    let from = chain[0];
+    for (let i = chain.length - 1; i >= 1; i--) {
+      if (!same(tabStructOn(raw, tid, chain.slice(0, i + 1)), tabStructOn(raw, tid, chain.slice(0, i)))) { from = chain[i]; break; }
     }
-    meta.tab[tid] = {
-      status: k > 0 && !before ? 'new' : k > 0 && !same(now, before) ? 'changed' : 'same',
-      from: vs[from].id
-    };
+    meta.tab[tid] = { status: st(now, before, !!bchain.length), own: st(now, par, !!pchain.length), from };
   });
-  tidsPrev.forEach(tid => {
+  tidsBase.forEach(tid => {
     if (meta.tab[tid]) return;
-    const before = tabStructAt(raw, tid, k - 1);
+    const before = tabStructOn(raw, tid, bchain);
     if (before) meta.removedTabs.push({ id: tid, title: before.tab.title || tid });
   });
   return meta;
@@ -345,18 +432,30 @@ export function versionMeta(raw: FlowDoc | null, vid: string | null): VersionMet
 
 /** 버전 관리 시작 — 지금 문서를 기준 버전으로 */
 export function startVersioning(raw: FlowDoc, base: Version, next?: Version) {
-  raw.versions = [base, ...(next ? [next] : [])];
+  raw.versions = [base, ...(next ? [{ ...next, parent: base.id }] : [])];
 }
 
+/** 새 버전 — parent를 지정하면 그 버전에서 갈라진다(브랜치). 없으면 마지막 버전 위에 */
 export function addVersion(raw: FlowDoc, v: Version) {
-  raw.versions = [...(raw.versions || []), v];
+  const vs = raw.versions || [];
+  const parent = v.parent && vs.some(x => x.id === v.parent) ? v.parent : vs.length ? vs[vs.length - 1].id : undefined;
+  raw.versions = [...vs, { ...v, ...(parent ? { parent } : {}) }];
 }
 
-/** 마지막 버전 삭제 — 그 버전의 기록(신규 씬·씬 변경·탭 구조)을 함께 지운다 */
-export function deleteLastVersion(raw: FlowDoc) {
+/** 구 일자형 문서의 암묵적 부모를 parent 필드로 굳힌다 — 버전을 지우거나 끼워 넣어도 트리가 유지되게 */
+export function pinParents(raw: FlowDoc) {
+  (raw.versions || []).forEach((v, i) => {
+    if (i === 0) { delete v.parent; return; }
+    v.parent = parentOf(raw, v.id)!;
+  });
+}
+
+/** 버전 삭제 — 자식이 없는 버전(가지 끝)만. 그 버전의 기록(신규 씬·씬 변경·탭 구조)을 함께 지운다 */
+export function deleteVersion(raw: FlowDoc, V: string): boolean {
   const vs = raw.versions || [];
-  if (vs.length < 2) return;
-  const V = vs[vs.length - 1].id;
+  const i = vIdx(raw, V);
+  if (i <= 0 || childrenOf(raw, V).length) return false;
+  pinParents(raw);
   Object.keys(raw.scenes).forEach(id => {
     const s = raw.scenes[id];
     if (s.since === V) { delete raw.scenes[id]; return; }
@@ -366,7 +465,14 @@ export function deleteLastVersion(raw: FlowDoc) {
     delete raw.versionTabs[V];
     if (!Object.keys(raw.versionTabs).length) delete raw.versionTabs;
   }
-  raw.versions = vs.slice(0, -1);
+  raw.versions = vs.filter(v => v.id !== V);
+  return true;
+}
+
+/** 마지막 버전 삭제 (구 API 호환) */
+export function deleteLastVersion(raw: FlowDoc) {
+  const vs = raw.versions || [];
+  if (vs.length >= 2) deleteVersion(raw, vs[vs.length - 1].id);
 }
 
 /** 버전 관리 해제 — 기준 버전 하나만 남았을 때, 버전 필드를 걷어낸 평범한 문서로 */
@@ -375,7 +481,7 @@ export function stopVersioning(raw: FlowDoc): FlowDoc {
   return structuredClone(flat);
 }
 
-/** 이 버전에서의 씬 변경을 되돌려 직전 버전 것을 상속 */
+/** 이 버전에서의 씬 변경을 되돌려 부모 버전 것을 상속 */
 export function revertScene(raw: FlowDoc, vid: string, id: string) {
   const s = raw.scenes[id];
   if (!s || !s.rev) return;
@@ -383,7 +489,7 @@ export function revertScene(raw: FlowDoc, vid: string, id: string) {
   if (!Object.keys(s.rev).length) delete s.rev;
 }
 
-/** 이 버전에서의 탭 구조 변경을 되돌려 직전 버전 것을 상속 */
+/** 이 버전에서의 탭 구조 변경을 되돌려 부모 버전 것을 상속 */
 export function revertTab(raw: FlowDoc, vid: string, tid: string) {
   const ov = raw.versionTabs?.[vid];
   if (!ov) return;
@@ -392,12 +498,32 @@ export function revertTab(raw: FlowDoc, vid: string, tid: string) {
   if (raw.versionTabs && !Object.keys(raw.versionTabs).length) delete raw.versionTabs;
 }
 
-/** 다음 버전 id 제안 — 마지막 숫자를 1 올린다 (1.0 → 1.1, v2 → v3) */
-export function suggestNextId(vs: Version[]): string {
-  const last = vs.length ? vs[vs.length - 1].id : '1.0';
-  const m = last.match(/^(.*?)(\d+)$/);
-  if (!m) return last + '.1';
+/** 다음 버전 id 제안 — 부모가 가지 끝이면 마지막 숫자 +1 (1.0 → 1.1), 이미 자식이 있으면 갈래 번호 (1.0 → 1.0.1) */
+export function suggestNextId(vs: Version[], parent?: string, raw?: FlowDoc): string {
+  const taken = (id: string) => vs.some(v => v.id === id);
+  const p = parent || (vs.length ? vs[vs.length - 1].id : '1.0');
+  const hasKids = raw ? childrenOf(raw, p).length > 0 : false;
+  if (hasKids) {
+    let n = 1;
+    while (taken(p + '.' + n)) n++;
+    return p + '.' + n;
+  }
+  const m = p.match(/^(.*?)(\d+)$/);
+  if (!m) { let n = 1; while (taken(p + '.' + n)) n++; return p + '.' + n; }
   let id = m[1] + (Number(m[2]) + 1);
-  while (vs.some(v => v.id === id)) id = id + '.1';
+  while (taken(id)) id = id + '.1';
   return id;
+}
+
+/** 비교 넘김 순서 — 현재 문서의 플로우 등장 순서(탭 시작 → Branch seq) → 나머지 → 기준에만 있던(삭제) 씬 */
+export function diffOrder(doc: FlowDoc, m: VersionMeta): string[] {
+  const seen: string[] = [];
+  const add = (id: string | null | undefined) => { if (id && !seen.includes(id)) seen.push(id); };
+  doc.tabs.forEach(t => {
+    add(t.start);
+    doc.flows.filter(f => f.tab === t.id).forEach(f => { add(f.from); f.seq.forEach(add); });
+  });
+  Object.keys(doc.scenes).forEach(add);
+  const changed = seen.filter(id => m.scene[id] && m.scene[id].status !== 'same');
+  return [...changed, ...m.removedScenes.map(s => s.id)];
 }

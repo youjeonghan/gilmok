@@ -23,7 +23,7 @@ function PanelIcon({ open }: { open: boolean }) {
   );
 }
 
-const VER = '0.8.0'; // 서버 미응답 시 폴백 표기 — 실제 버전은 server.version
+const VER = '0.9.0'; // 서버 미응답 시 폴백 표기 — 실제 버전은 server.version
 const APP_NAME = '길목'; // 저장소 gilmok · 설치 파일 gilmok-setup — 이름 전부 길목/gilmok으로 통일
 
 /** 앱 로고 — 씬 카드 두 장을 ㄴ자 커넥터로 잇는 글리프 */
@@ -338,11 +338,11 @@ export function Header() {
             {t.title}
             {(() => {
               // 버전 오버레이 — diff: 신규/구조 변경 점 · 상속: 출처 버전
-              const vt = verMeta.enabled && verMeta.idx > 0 ? verMeta.tab[t.id] : null;
+              const vt = verMeta.enabled ? verMeta.tab[t.id] : null;
               if (!vt) return null;
-              if (ui.verDiff && vt.status !== 'same')
-                return <span className={'tvdot ' + vt.status} title={vt.status === 'new' ? '이 버전에서 신규 Tab' : '이 버전에서 구조 변경'} />;
-              if (ui.verInherit && vt.status === 'same')
+              if (ui.verDiff && verMeta.base && vt.status !== 'same')
+                return <span className={'tvdot ' + vt.status} title={'v' + verMeta.base.id + ' 대비 ' + (vt.status === 'new' ? '신규 Tab' : '구조 변경')} />;
+              if (ui.verInherit && verMeta.depth > 0 && vt.own === 'same')
                 return <span className="tvfrom" title={'v' + vt.from + ' 구조 상속'}>v{vt.from}</span>;
               return null;
             })()}

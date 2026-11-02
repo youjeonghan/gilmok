@@ -16,6 +16,10 @@ interface Store {
   ver: string | null;
   setVersion: (v: string) => void;
   verMeta: VersionMeta;
+  /** 비교 기준 버전으로 해석한 문서 (기준이 없으면 null) — 비교 뷰어용 */
+  baseDoc: FlowDoc | null;
+  /** 비교 기준 버전 지정 (null = 부모) */
+  setVersionBase: (v: string | null) => void;
   server: ServerInfo | null;
   DATA: string;
   isServer: boolean;
@@ -75,7 +79,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const saveTimer = useRef<any>(null);
   const ver = useMemo(() => (raw ? effectiveVersion(raw, verPick) : null), [raw, verPick]);
   const doc = useMemo(() => (raw ? resolve(raw, ver) : null), [raw, ver]);
-  const verMeta = useMemo(() => versionMeta(raw, ver), [raw, ver]);
+  const verMeta = useMemo(() => versionMeta(raw, ver, ui.verBase), [raw, ver, ui.verBase]);
+  const baseDoc = useMemo(() => (raw && verMeta.base ? resolve(raw, verMeta.base.id) : null), [raw, verMeta.base]);
   const docRef = useRef<FlowDoc | null>(null);
   docRef.current = doc;
   const rawRef = useRef<FlowDoc | null>(null);
@@ -124,6 +129,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const next = structuredClone(r);
     pushRaw(normalize(mutator(next) || next));
   }, [pushRaw]);
+
+  const setVersionBase = useCallback((v: string | null) => {
+    setUiState(prev => {
+      const next = { ...prev, verBase: v || undefined };
+      if (!v) delete next.verBase;
+      try { localStorage.setItem(keys.current.LS_UI, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
 
   const setVersion = useCallback((v: string) => {
     setVerPick(v);
@@ -294,7 +308,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <Ctx.Provider value={{
-      phase, errMsg, doc, raw, ver, setVersion, verMeta, server, DATA, isServer: !!server,
+      phase, errMsg, doc, raw, ver, setVersion, verMeta, baseDoc, setVersionBase, server, DATA, isServer: !!server,
       activeTab, setActiveTab, ui, setUI, appTheme, setAppTheme, thumbVer,
       commit, commitRaw, undo, redo, resetToFile, patchServer
     }}>

@@ -5,7 +5,7 @@ import { useStore } from '../store';
 import { useActions } from '../actions';
 import { titleOf, themePath, thumbUrl, isImageFile, flowsFrom } from '../types';
 import { useViewer, ViewerReq } from './Viewer';
-import { revertScene } from '../versions';
+import { revertScene, diffOrder } from '../versions';
 import { forkSceneFile } from '../api';
 import { useDialogs } from '../dialogs';
 import { useCanvasUI, clickSuppressed } from '../canvasui';
@@ -41,18 +41,18 @@ export function ScenePreview({ file, v }: { file: string; v?: string }) {
 /** 버전 오버레이 — 보고 싶을 때만(상속/diff 토글) 카드 클래스·배지를 준다 */
 export function useSceneVer(sid: string): { cls: string; badge: { text: string; kind: string; title: string } | null } {
   const { verMeta: m, ui } = useStore();
-  const s = m.enabled && m.idx > 0 ? m.scene[sid] : null;
+  const s = m.enabled ? m.scene[sid] : null;
   if (!s) return { cls: '', badge: null };
   let cls = '';
   let badge: { text: string; kind: string; title: string } | null = null;
-  if (ui.verDiff && s.status !== 'same') {
+  if (ui.verDiff && m.base && s.status !== 'same') {
     cls += ' v-' + s.status;
     badge = s.status === 'new'
-      ? { text: '신규', kind: 'new', title: 'v' + m.cur + '에서 새로 생긴 Scene' }
-      : { text: '변경', kind: 'changed', title: '직전 버전(v' + m.prev?.id + ') 대비 변경' };
+      ? { text: '신규', kind: 'new', title: 'v' + m.base.id + '에는 없고 v' + m.cur + '에만 있는 Scene' }
+      : { text: '변경', kind: 'changed', title: 'v' + m.base.id + ' 대비 변경 — 클릭하면 나란히 비교' };
   }
-  if (ui.verInherit) {
-    if (s.status === 'same') {
+  if (ui.verInherit && m.depth > 0) {
+    if (s.own === 'same') {
       cls += ' v-inherited';
       badge = badge || { text: 'v' + s.from, kind: 'inh', title: 'v' + s.from + ' 것을 그대로 상속' };
     } else {
@@ -79,6 +79,12 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }
   const dialogs = useDialogs();
   const vb = useSceneVer(sid).badge;
   if (!doc) return null;
+  const openCompare = (e: React.MouseEvent) => {
+    if (!vb || (vb.kind !== 'new' && vb.kind !== 'changed')) return;
+    e.stopPropagation();
+    const ids = diffOrder(doc, verMeta);
+    viewer.compare({ ids, index: Math.max(0, ids.indexOf(sid)) });
+  };
   /* 뷰어 순서 — 그 라인에 한정 */
   const navFor = (): ViewerReq => {
     if (nav) return nav;
@@ -99,7 +105,7 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }
   const du = sc.kind === 'capture' || isImageFile(sc.file) ? null : designEditUrl(doc.service?.designUrl, sc.file);
 
   // 버전 관리 중(기준 이후 버전)일 때만: 이 버전용 파일 복제 · 이 버전 변경 되돌리기
-  const vs = verMeta.enabled && verMeta.idx > 0 && ver ? verMeta.scene[sid] : null;
+  const vs = verMeta.enabled && verMeta.depth > 0 && ver ? verMeta.scene[sid] : null;
   const canFork = !!(vs && sc.file && server?.canFork && !sc.file.includes('@' + ver + '.'));
   const forkFile = async () => {
     if (!sc.file || !ver) return;
@@ -110,7 +116,7 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }
     await dialogs.askInfo('v' + ver + '용 파일을 만들었어요 — 이 파일만 고치면 이 버전에만 반영돼요.\n' + nf);
   };
   const revert = async () => {
-    if (!ver || !(await dialogs.askConfirm('「' + titleOf(doc, sid) + '」의 v' + ver + ' 변경을 되돌려 직전 버전 것을 쓸까요?'))) return;
+    if (!ver || !(await dialogs.askConfirm('「' + titleOf(doc, sid) + '」의 v' + ver + ' 변경을 되돌려 부모 버전(v' + (verMeta.parent?.id || '') + ') 것을 쓸까요?'))) return;
     commitRaw(d => { revertScene(d, ver, sid); });
   };
 
@@ -128,7 +134,9 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }
         {path
           ? <ScenePreview file={path} v={sc.updated} />
           : (theme === 'default' ? '미제작' : `'${theme}' 테마 미등록`)}
-        {vb && <span className={'vbadge ' + vb.kind + ' oncard'} title={vb.title}>{vb.text}</span>}
+        {vb && <span className={'vbadge ' + vb.kind + ' oncard' + (vb.kind === 'new' || vb.kind === 'changed' ? ' click nodrag' : '')}
+          title={vb.title} onMouseDown={e => { if (vb.kind === 'new' || vb.kind === 'changed') e.stopPropagation(); }}
+          onClick={openCompare}>{vb.text}</span>}
         <div className="themes nodrag">
           {themeNames.map(t => {
             const label = t === 'default' ? 'D' : t === 'light' ? 'L' : t === 'dark' ? 'N' : t === '+' ? '＋' : t.slice(0, 2);
@@ -170,7 +178,7 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }
         {canFork && <button title={'이 Scene 파일을 v' + ver + '용으로 복제 — 이후 수정은 이 버전에만 반영'}
           onMouseDown={e => e.stopPropagation()}
           onClick={forkFile}>⎇ v{ver}용</button>}
-        {vs?.status === 'changed' && <button title="이 버전의 변경을 되돌려 직전 버전 것을 상속"
+        {vs?.own === 'changed' && <button title="이 버전의 변경을 되돌려 부모 버전 것을 상속"
           onMouseDown={e => e.stopPropagation()}
           onClick={revert}>↺ 되돌리기</button>}
         {du && <button title="클로드 디자인에서 편집"
