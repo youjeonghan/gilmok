@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useStore } from '../store';
 import { titleOf, themePath, isImageFile } from '../types';
+import { commonAncestor } from '../versions';
 
 export interface ViewerReq {
   seq: string[];   // 넘길 씬 id 순서 (끝에서 멈춤, 순환 없음)
@@ -119,7 +120,7 @@ function ComparePane({ label, sc, data, side }: { label: string; sc: PaneScene; 
 }
 
 function CompareOverlay({ st, setSt }: { st: CompareReq; setSt: (s: CompareReq | null) => void }) {
-  const { doc, baseDoc, verMeta: m, DATA } = useStore();
+  const { doc, raw, baseDoc, verMeta: m, DATA } = useStore();
   const n = st.ids.length;
   const sid = st.ids[st.index];
   const close = useCallback(() => setSt(null), [setSt]);
@@ -143,7 +144,8 @@ function CompareOverlay({ st, setSt }: { st: CompareReq; setSt: (s: CompareReq |
   if (!doc || !m.base) return null;
   const a = baseDoc?.scenes[sid] || null;
   const b = doc.scenes[sid] || null;
-  const status = !a ? '신규' : !b ? '삭제' : (m.scene[sid]?.status === 'same' ? '같음' : '변경');
+  const lineal = !!raw && commonAncestor(raw, m.base.id, m.cur!) === m.base.id;
+  const status = !a ? (lineal ? '신규' : '이 버전에만') : !b ? (lineal ? '삭제' : '기준에만') : (m.scene[sid]?.status === 'same' ? '같음' : '변경');
   const fields: string[] = [];
   if (a && b) {
     if (a.title !== b.title) fields.push('제목');
@@ -159,7 +161,7 @@ function CompareOverlay({ st, setSt }: { st: CompareReq; setSt: (s: CompareReq |
         <span className="vlabel">v{m.base.id} ↔ v{m.cur}</span>
         <span className="vpos">{st.index + 1} / {n}</span>
         <b>{(b || a)?.title || sid}</b>
-        <span className={'vbadge ' + (status === '신규' ? 'new' : status === '삭제' ? 'removed' : 'changed')}>{status}</span>
+        <span className={'vbadge ' + (!a ? 'new' : !b ? 'removed' : 'changed')}>{status}</span>
         {fields.length > 0 && <span className="vkind">바뀐 것: {fields.join('·')}</span>}
         <span className="sp" />
         <button onClick={close} title="닫기 (Esc)">✕</button>

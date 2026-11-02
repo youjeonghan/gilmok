@@ -48,7 +48,7 @@ export function useSceneVer(sid: string): { cls: string; badge: { text: string; 
   if (ui.verDiff && m.base && s.status !== 'same') {
     cls += ' v-' + s.status;
     badge = s.status === 'new'
-      ? { text: '신규', kind: 'new', title: 'v' + m.base.id + '에는 없고 v' + m.cur + '에만 있는 Scene' }
+      ? { text: m.chain.includes(m.base.id) ? '신규' : '이 버전에만', kind: 'new', title: 'v' + m.base.id + '에는 없고 v' + m.cur + '에만 있는 Scene — 클릭하면 나란히 비교' }
       : { text: '변경', kind: 'changed', title: 'v' + m.base.id + ' 대비 변경 — 클릭하면 나란히 비교' };
   }
   if (ui.verInherit && m.depth > 0) {

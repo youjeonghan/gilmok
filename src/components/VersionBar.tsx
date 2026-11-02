@@ -213,6 +213,9 @@ export function VersionDiffPanel() {
   };
 
   const ca = commonAncestor(raw, m.base.id, ver);
+  // 기준이 조상이면 신규/삭제, 아니면(형제 갈래·자손) 어느 쪽에만 있는지로 표기
+  const lineal = ca === m.base.id;
+  const L = lineal ? { add: '신규', del: '삭제' } : { add: '이 버전에만', del: '기준에만' };
   const relation = ca === m.base.id ? (m.baseCustom ? '조상' : '부모')
     : ca === ver ? '자손' : ca ? '갈래 · 공통 조상 v' + ca : '';
   const empty = !added.length && !changed.length && !m.removedScenes.length && !tabs.length && !m.removedTabs.length;
@@ -220,13 +223,13 @@ export function VersionDiffPanel() {
     <div className="verpanel">
       <div className="vp-head">
         {baseSel} <b>→ v{ver}</b>
-        <span className="vp-sum">신규 {added.length} · 변경 {changed.length} · 삭제 {m.removedScenes.length}</span>
+        <span className="vp-sp" />
         {order.length > 0 && <span className="vp-cmp" title="차이 나는 Scene을 기준 ↔ 현재 나란히 넘겨 보기" onClick={() => cmp()}>⇆ 나란히 비교</span>}
         <span className="vp-x" title="diff 끄기" onClick={() => setUI({ verDiff: false })}>✕</span>
       </div>
-      {relation && <div className="vp-path">기준 v{m.base.id} = 현재의 {relation}</div>}
+      <div className="vp-path">{relation && <>기준 v{m.base.id} = 현재의 {relation} · </>}{L.add} {added.length} · 변경 {changed.length} · {L.del} {m.removedScenes.length}</div>
       {empty && <div className="vp-empty">기준 버전과 차이가 없어요</div>}
-      {added.length > 0 && <div className="vp-sec"><span className="vbadge new">신규</span>
+      {added.length > 0 && <div className="vp-sec"><span className="vbadge new">{L.add}</span>
         {added.map(([id]) => <span key={id} className="vp-it click" title="나란히 비교" onClick={() => cmp(id)}>{title(id)}</span>)}</div>}
       {changed.length > 0 && <div className="vp-sec"><span className="vbadge changed">변경</span>
         {changed.map(([id, s]) => (
@@ -235,9 +238,9 @@ export function VersionDiffPanel() {
               onClick={e => { e.stopPropagation(); revScene(id, title(id)); }}>↺</span>}
           </span>
         ))}</div>}
-      {m.removedScenes.length > 0 && <div className="vp-sec"><span className="vbadge removed">삭제</span>
+      {m.removedScenes.length > 0 && <div className="vp-sec"><span className="vbadge removed">{L.del}</span>
         {m.removedScenes.map(s => (
-          <span key={s.id} className="vp-it gone click" title="나란히 비교" onClick={() => cmp(s.id)}>{s.title}
+          <span key={s.id} className={'vp-it click' + (lineal ? ' gone' : '')} title="나란히 비교" onClick={() => cmp(s.id)}>{s.title}
             {canRevert && <span className="vp-rev" title="삭제 취소"
               onClick={e => { e.stopPropagation(); revScene(s.id, s.title, true); }}>↺</span>}
           </span>
