@@ -483,7 +483,14 @@ dialog::backdrop{background:rgba(10,12,13,.5)}
 .vs-title{font-weight:700;color:var(--text-sub)}
 .vs-meta{color:var(--text-faint);font-size:12px}
 .vs-stat{display:flex;gap:5px;flex-wrap:wrap}
-.vs-note{white-space:pre-wrap;line-height:1.55;color:var(--text-sub);background:var(--hover-bg);border-radius:8px;padding:10px;font-size:12.5px}
+.vs-note{line-height:1.65;color:var(--text-sub);background:var(--hover-bg);border-radius:8px;padding:12px 14px;font-size:12.5px;font-weight:400;
+  display:flex;flex-direction:column;gap:10px;word-break:keep-all;overflow-wrap:anywhere}
+.vs-note p{margin:0}
+.vs-note .vn-head{font-weight:700;color:var(--ink);margin-bottom:4px}
+.vs-note ul{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:3px}
+.vs-note li::marker{color:var(--text-faint)}
+.vs-note .vn-li{padding-left:12px;text-indent:-10px}
+.vs-note .vn-li::before{content:'• ';color:var(--text-faint)}
 .vs-acts{display:flex;flex-direction:column;gap:7px;margin-top:4px}
 .vs-acts button{font:inherit;font-weight:700;font-size:13px;padding:8px 12px;border-radius:9px;cursor:pointer;text-align:left;
   border:1px solid var(--border);background:var(--surface);color:var(--ink)}

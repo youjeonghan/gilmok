@@ -9,6 +9,43 @@ const ROW_H = 58, LANE_W = 22, PAD = 18, R = 6;
 const LANE_COLORS = ['var(--jade)', 'var(--primary)', '#5b6ee1', '#b7791f', '#8e5bd6', '#2f8f9d', '#c2536b'];
 const laneColor = (l: number) => LANE_COLORS[l % LANE_COLORS.length];
 
+/** 버전 메모를 읽기 좋게 — 줄바꿈은 문단, "제목 — 내용"은 제목 줄 + 내용,
+ *  쉼표·가운뎃점으로 3개 이상 나열된 내용은 목록으로 */
+function NoteView({ text }: { text: string }) {
+  const splitList = (t: string): string[] | null => {
+    // 괄호 안의 쉼표·점은 나누지 않는다
+    const parts: string[] = [];
+    let depth = 0, buf = '';
+    for (let i = 0; i < t.length; i++) {
+      const c = t[i];
+      if (c === '(' || c === '[') depth++;
+      if (c === ')' || c === ']') depth = Math.max(0, depth - 1);
+      const sep = depth === 0 && (t.startsWith(', ', i) || t.startsWith(' · ', i));
+      if (sep) { parts.push(buf.trim()); buf = ''; i += t.startsWith(' · ', i) ? 2 : 1; continue; }
+      buf += c;
+    }
+    if (buf.trim()) parts.push(buf.trim());
+    return parts.length >= 3 ? parts.map(x => x.replace(/[.。]$/, '')) : null;
+  };
+  const blocks = text.split(/\n+/).map(x => x.trim()).filter(Boolean);
+  return (
+    <div className="vs-note">
+      {blocks.map((b, i) => {
+        if (/^[-•·]\s/.test(b)) return <div key={i} className="vn-li">{b.replace(/^[-•·]\s+/, '')}</div>;
+        const m = b.match(/^(.{2,60}?)\s+—\s+(.+)$/);
+        const head = m ? m[1] : null, body = m ? m[2] : b;
+        const list = splitList(body);
+        return (
+          <div key={i} className="vn-block">
+            {head && <div className="vn-head">{head}</div>}
+            {list ? <ul>{list.map((x, j) => <li key={j}>{x}</li>)}</ul> : <p>{body}</p>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function VersionGraph({ onClose, onBranch }: { onClose: () => void; onBranch: (parent: string) => void }) {
   const { raw, ver, verMeta: m, setVersion, setVersionBase, setUI, commitRaw } = useStore();
   const dialogs = useDialogs();
@@ -156,7 +193,7 @@ export function VersionGraph({ onClose, onBranch }: { onClose: () => void; onBra
                 <span className="vbadge removed">삭제 {selStat.del}</span>
                 <span className="vbadge tab">Tab {selStat.tab}</span>
               </div>}
-              {selRow.v.note && <div className="vs-note">{selRow.v.note}</div>}
+              {selRow.v.note && <NoteView text={selRow.v.note} />}
               <div className="vs-acts">
                 <button className="primary" onClick={() => view(selRow.v.id)}>이 버전 보기</button>
                 {ver && selRow.v.id !== ver &&
