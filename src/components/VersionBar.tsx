@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { useDialogs } from '../dialogs';
 import { useViewer } from './Viewer';
+import { VersionGraph } from './VersionGraph';
 import {
   startVersioning, addVersion, deleteVersion, stopVersioning,
   revertScene, revertTab, suggestNextId, treeRows, childrenOf, diffOrder, commonAncestor
@@ -12,6 +13,7 @@ export function VersionBar() {
   const { raw, ver, verMeta: m, setVersion, setVersionBase, commitRaw, ui, setUI } = useStore();
   const dialogs = useDialogs();
   const [open, setOpen] = useState(false);
+  const [graph, setGraph] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -118,6 +120,7 @@ export function VersionBar() {
       </button>
       {open && (
         <div className="vermenu">
+          <div className="vm-item vm-act vm-graph" onClick={() => { setOpen(false); setGraph(true); }}>⎇ 버전 그래프 보기… <span className="vm-title">(브랜치 GUI · 정본 지정)</span></div>
           <div className="vm-hint">클릭 = 이 버전 보기 · ⑂ = 여기서 갈라지기 · 비교 = 이 버전을 기준으로 diff</div>
           {rows.map(({ v, depth, guides, last }) => (
             <div key={v.id}
@@ -129,7 +132,7 @@ export function VersionBar() {
               <span className="vm-dot" />
               <b>v{v.id}</b>
               {v.title && <span className="vm-title">{v.title}</span>}
-              {depth === 0 && <span className="vm-tag">기준</span>}
+              {depth === 0 && <span className="vm-tag root">★ 정본</span>}
               <span className="vm-sub" onClick={e => e.stopPropagation()}>
                 <span title={'v' + v.id + '에서 새 버전으로 갈라지기'} onClick={() => addNew(v.id)}>⑂</span>
                 {v.id !== m.cur && <span className={m.base?.id === v.id ? 'on' : ''}
@@ -156,6 +159,7 @@ export function VersionBar() {
             onClick={() => setUI({ verDiff: !ui.verDiff })}>diff{m.base ? ' ↔ v' + m.base.id : ''}</span>
         </span>
       )}
+      {graph && <VersionGraph onClose={() => setGraph(false)} onBranch={p => addNew(p)} />}
     </span>
   );
 }

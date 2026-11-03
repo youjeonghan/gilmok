@@ -527,3 +527,154 @@ export function diffOrder(doc: FlowDoc, m: VersionMeta): string[] {
   const changed = seen.filter(id => m.scene[id] && m.scene[id].status !== 'same');
   return [...changed, ...m.removedScenes.map(s => s.id)];
 }
+
+/* ---------- 정본(루트) 승격 — v0.10.0 ----------
+ * 고른 버전을 트리의 새 루트(정본)로 다시 세운다(re-root). git으로 치면 그 갈래를 main으로 삼는 것.
+ *   - 모든 버전의 해석 결과(화면에 보이는 플로우)는 그대로다. 바뀌는 건 부모-자식 방향뿐:
+ *     루트 → … → V 경로가 뒤집혀 V가 루트, 옛 루트는 경로를 따라 V의 자손이 된다. 다른 갈래는 붙어 있던 버전 아래 그대로.
+ *   - 방법: 버전별 해석본을 스냅샷으로 떠 두고, 새 트리 기준으로 다시 인코딩(최상위 = V, 나머지는 부모 대비 차이만)
+ *   - 인코딩 후 모든 버전을 다시 해석해 스냅샷과 같은지 검증한다. 하나라도 다르면 원본을 건드리지 않고 실패를 돌려준다. */
+
+/** 비교용 정규형 — 흐름은 탭 순서로 묶고, 빈 배치는 제거 */
+function canon(d: FlowDoc) {
+  const tabs = d.tabs.map(t => ({ id: t.id, title: t.title, start: t.start }));
+  const flows = tabs.flatMap(t => d.flows.filter(f => f.tab === t.id).map(normFlow));
+  const layout: Record<string, TabLayout> = {};
+  tabs.forEach(t => { const l = cleanLayout(d.layout?.[t.id]); if (l) layout[t.id] = l; });
+  const scenes: Record<string, Scene> = {};
+  Object.keys(d.scenes).sort().forEach(id => { scenes[id] = pickFields(d.scenes[id]); });
+  return JSON.stringify({ tabs, flows, layout, scenes });
+}
+
+export interface PromoteResult { ok: boolean; raw?: FlowDoc; error?: string }
+
+export function promoteVersion(raw0: FlowDoc, V: string): PromoteResult {
+  const vs0 = raw0.versions || [];
+  if (!vs0.length || vIdx(raw0, V) < 0) return { ok: false, error: '버전을 찾을 수 없어요.' };
+  if (vs0[0].id === V) return { ok: false, error: '이미 정본(기준) 버전이에요.' };
+
+  // 1) 스냅샷 — 버전별 해석본
+  const snap: Record<string, FlowDoc> = {};
+  vs0.forEach(v => { snap[v.id] = docOn(raw0, chainOf(raw0, v.id)); });
+
+  // 2) 새 트리 — 무방향 트리를 V에서 다시 매단다
+  const adj: Record<string, string[]> = {};
+  vs0.forEach(v => { adj[v.id] = []; });
+  vs0.forEach(v => { const p = parentOf(raw0, v.id); if (p) { adj[v.id].push(p); adj[p].push(v.id); } });
+  const par: Record<string, string | null> = { [V]: null };
+  const order: string[] = [];
+  const q = [V];
+  while (q.length) {
+    const x = q.shift()!;
+    order.push(x);
+    // 원래 배열 순서를 따라 자식 순서를 안정적으로
+    adj[x].slice().sort((a, b) => vIdx(raw0, a) - vIdx(raw0, b)).forEach(y => {
+      if (y in par) return;
+      par[y] = x; q.push(y);
+    });
+  }
+  const chainN = (id: string) => { const c: string[] = []; let x: string | null = id; while (x) { c.unshift(x); x = par[x]; } return c; };
+  const depth = (id: string) => chainN(id).length - 1;
+
+  // 3) 최상위 = V
+  const R = snap[V];
+  const out: FlowDoc = {
+    version: raw0.version, service: raw0.service,
+    tabs: structuredClone(R.tabs), flows: structuredClone(R.flows), scenes: {},
+    ...(R.layout && Object.keys(R.layout).length ? { layout: structuredClone(R.layout) } : {})
+  } as FlowDoc;
+  out.versions = order.map(id => {
+    const v = structuredClone(vs0.find(x => x.id === id)!);
+    delete v.parent; delete v.tabOrder;
+    if (par[id]) v.parent = par[id]!;
+    return v;
+  });
+
+  // 4) 씬 — 태어난 버전(존재하는 버전들 중 가장 위) + 부모 대비 차이
+  const allIds = new Set<string>();
+  order.forEach(v => Object.keys(snap[v].scenes).forEach(id => allIds.add(id)));
+  for (const id of allIds) {
+    const E = order.filter(v => snap[v].scenes[id]);
+    const B = E.slice().sort((a, b) => depth(a) - depth(b))[0];
+    const bad = E.find(v => !chainN(v).includes(B));
+    if (bad) return { ok: false, error: `Scene 「${snap[bad].scenes[id].title || id}」이(가) 서로 떨어진 갈래(v${B}, v${bad})에 따로 있어 새 트리로 옮길 수 없어요.` };
+    const s: Scene = { ...pickFields(snap[B].scenes[id]) };
+    if (B !== V) s.since = B;
+    const rev: Record<string, SceneRev> = {};
+    order.forEach(v => {
+      if (v === B || !chainN(v).includes(B)) return;
+      const now = snap[v].scenes[id] ? pickFields(snap[v].scenes[id]) : null;
+      const p = par[v]!;
+      const prev = snap[p].scenes[id] ? pickFields(snap[p].scenes[id]) : null;
+      if (!now && !prev) return;
+      if (!now) { rev[v] = { removed: true }; return; }
+      const d: SceneRev = {};
+      FIELDS.forEach(f => { if (!prev || !same((prev as any)[f], (now as any)[f])) (d as any)[f] = (now as any)[f]; });
+      if (Object.keys(d).length) rev[v] = d;
+    });
+    if (Object.keys(rev).length) s.rev = rev;
+    out.scenes[id] = s;
+  }
+
+  // 5) 탭 구조 — 부모 대비 달라진 탭만 통째로 (copy-on-write와 같은 형태)
+  const vt: Record<string, Record<string, TabOverride>> = {};
+  order.forEach(v => {
+    if (v === V) return;
+    const a = structsOf(snap[v]), b = structsOf(snap[par[v]!]);
+    const ov: Record<string, TabOverride> = {};
+    new Set([...Object.keys(a), ...Object.keys(b)]).forEach(tid => {
+      if (same(a[tid], b[tid])) return;
+      if (!a[tid]) ov[tid] = { removed: true };
+      else ov[tid] = { tab: a[tid].tab, flows: a[tid].flows, ...(a[tid].layout ? { layout: a[tid].layout } : {}) };
+    });
+    if (Object.keys(ov).length) vt[v] = ov;
+  });
+  if (Object.keys(vt).length) out.versionTabs = vt;
+
+  // 6) 탭 순서 — 위에서부터 차례로 (부모의 tabOrder가 먼저 정해져야 자식의 자연 순서를 계산할 수 있다)
+  order.forEach(v => {
+    if (v === V) return;
+    const chain = chainN(v);
+    const want = snap[v].tabs.map(t => t.id);
+    const natural = tabOrderOn(out, chain, true).filter(t => want.includes(t));
+    if (!same(natural, want)) out.versions!.find(x => x.id === v)!.tabOrder = want;
+  });
+
+  // 7) 검증 — 모든 버전이 승격 전과 똑같이 보이는지
+  for (const v of order) {
+    if (canon(docOn(out, chainOf(out, v))) !== canon(snap[v])) {
+      return { ok: false, error: `검증 실패 — v${v}가 승격 전과 다르게 보여요. 원본은 그대로 두었어요.` };
+    }
+  }
+  return { ok: true, raw: out };
+}
+
+/* ---------- 버전 그래프 (git 브랜치 GUI 형태) ---------- */
+
+export interface GraphRow {
+  v: Version;
+  /** 레인(세로 줄) 번호 — 첫 자식은 부모 레인을 잇고, 둘째 자식부터 새 레인 */
+  lane: number;
+  parent: string | null;
+  parentLane: number | null;
+  depth: number;
+  children: number;
+}
+
+/** 위에서부터 최신 순(배열 뒤쪽이 위)으로 그릴 행과 레인 */
+export function graphRows(raw: FlowDoc): { rows: GraphRow[]; lanes: number } {
+  const vs = raw.versions || [];
+  const lane: Record<string, number> = {};
+  let next = 0;
+  vs.forEach((v, i) => {
+    const p = i === 0 ? null : parentOf(raw, v.id);
+    if (!p) { lane[v.id] = next++; return; }
+    const sib = childrenOf(raw, p);
+    lane[v.id] = sib[0] === v.id ? lane[p] : next++;
+  });
+  const rows = vs.map((v, i) => {
+    const p = i === 0 ? null : parentOf(raw, v.id);
+    return { v, lane: lane[v.id], parent: p, parentLane: p ? lane[p] : null, depth: chainOf(raw, v.id).length - 1, children: childrenOf(raw, v.id).length };
+  }).reverse();
+  return { rows, lanes: next };
+}
