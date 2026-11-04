@@ -110,10 +110,17 @@ export function computeLayout(
     return { w: s?.w ?? DEFAULT_LABEL_W, h: s?.h ?? DEFAULT_LABEL_H };
   };
 
+  /* 한 Tab 안에서 Branch를 이미 펼친 Scene → 펼친 카드 노드 id.
+   * 같은 Scene이 여러 레인에 나와도(예: 매칭 성사가 친해지기·말 걸기·받은 요청 레인에 모두 등장)
+   * 그 Scene의 Branch는 처음 나온 카드에서 한 번만 펼친다. 매번 펼치면 같은 플로우가 여러 번 배치돼
+   * 노드 id가 겹치고(React Flow가 하나로 합침) 여러 카드의 트렁크가 한 라벨로 몰려 선이 카드를 가로지른다.
+   * 레이아웃 순회 순서상 조상은 항상 먼저 펼쳐지므로 순환 방지도 겸한다. */
+  let expanded = new Map<string, string>();
+
   /** 한 플로우 블록(레인 + 그 아래 자식 그룹들) 배치. 반환: 블록 전체 높이(오프셋 포함 —
    *  이후 형제 블록들이 함께 밀린다). */
   function layoutBlock(f: FlowLane, tab: Tab, baseLabelX: number, baseYTop: number,
-    ancestors: Set<string>, isRootFirst: boolean): number {
+    isRootFirst: boolean): number {
     // 자유 배치 오프셋 — 자동 좌표에 더해진다 (첫 Branch 포함)
     const off = doc.layout?.[tab.id]?.offsets?.[f.id] || { dx: 0, dy: 0 };
     const labelX = baseLabelX + off.dx;
@@ -135,17 +142,20 @@ export function computeLayout(
     });
     const scenesX0 = labelX + ld.w + LANE_AFTER_LABEL;
     const sceneXs: number[] = [];
+    const sceneNodes: LNode[] = [];
     let laneH = THUMB_H;
     f.seq.forEach((sid, i) => {
       const nid = sceneNodeIdFor(f, i);
       const x = scenesX0 + i * PITCH;
       sceneXs.push(x);
       laneH = Math.max(laneH, sceneH(nid));
-      addNode({
+      const n: LNode = {
         id: nid, type: 'scene', x, y: sceneY,
         draggable: true, selectable: true,
         data: { sid, flowId: f.id, idx: i, tabId: tab.id }
-      });
+      };
+      sceneNodes.push(n);
+      addNode(n);
     });
     const laneRight = f.seq.length ? sceneXs[f.seq.length - 1] + CARD_W : scenesX0 + 40;
     maxX = Math.max(maxX, laneRight);
@@ -173,9 +183,16 @@ export function computeLayout(
     let grew = false;
     const groups: { i: number; subs: FlowLane[] }[] = [];
     f.seq.forEach((sid, i) => {
-      if (ancestors.has(sid)) return;
       const subs = flowsFrom(doc, sid, tab.id);
-      if (subs.length) groups.push({ i, subs });
+      if (!subs.length) return;
+      const owner = expanded.get(sid);
+      if (owner) {
+        // 이미 다른 카드에서 펼친 Scene — 여기선 펼치지 않고 그 카드를 가리키는 표시만
+        sceneNodes[i].data.branchesAt = { nodeId: owner, count: subs.length };
+        return;
+      }
+      expanded.set(sid, sceneNodes[i].id);
+      groups.push({ i, subs });
     });
     groups.sort((a, b) => sceneXs[b.i] - sceneXs[a.i]);
     for (const { i, subs } of groups) {
@@ -212,7 +229,7 @@ export function computeLayout(
               data: { startDY: prevArmB == null ? DROP_PAD : prevArmB + SEG_GAP - parentBottom }
             });
         if (side === 'r') prevArmR = armY; else prevArmB = armY;
-        const h = layoutBlock(cf, tab, cLabelX, childY, new Set([...ancestors, sid]), false);
+        const h = layoutBlock(cf, tab, cLabelX, childY, false);
         childY += h + BLOCK_GAP;
         grew = true;
       }
@@ -234,6 +251,7 @@ export function computeLayout(
     const startSid = tab.start;
     const rootId = `sc:root:${tab.id}`;
     const fs = flowsFrom(doc, startSid, tab.id);
+    expanded = new Map([[startSid, rootId]]); // Tab마다 새로 — 첫 Scene의 Branch는 루트 카드가 펼친다
     const rootX = x0;
     const firstBrPad = fs.length && (fs[0].brackets || []).length ? BRACKET_PAD : 0;
     const flowsY = y0 + RCAP_H;              // 첫 블록 yTop
@@ -246,7 +264,7 @@ export function computeLayout(
     let bottom = firstSceneY + sceneH(rootId);
     if (fs.length) {
       const firstLabelX = rootX + CARD_W + ROOT_TO_LABEL;
-      const h0 = layoutBlock(fs[0], tab, firstLabelX, flowsY, new Set([startSid]), true);
+      const h0 = layoutBlock(fs[0], tab, firstLabelX, flowsY, true);
       edges.push({
         id: `er:${fs[0].id}`, type: 'harrow',
         source: rootId, sourceHandle: 'r',
@@ -285,7 +303,7 @@ export function computeLayout(
                 data: { startDY: prevArmB == null ? DROP_PAD : prevArmB + SEG_GAP - rootNodeBottom }
               });
           if (side === 'r') prevArmR = armY; else prevArmB = armY;
-          const h = layoutBlock(cf, tab, cBase, childY, new Set([startSid]), false);
+          const h = layoutBlock(cf, tab, cBase, childY, false);
           childY += h + BLOCK_GAP;
         });
         bottom = childY - BLOCK_GAP;

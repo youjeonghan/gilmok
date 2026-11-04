@@ -63,7 +63,7 @@ export function useSceneVer(sid: string): { cls: string; badge: { text: string; 
 }
 
 /* ---------- 씬 카드 본체 (RF 노드와 갤러리에서 공용) ---------- */
-export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }: {
+export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav, afterCap }: {
   sid: string;
   flowId: string | null;
   idx: number;
@@ -72,6 +72,8 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }
   inCanvas?: boolean;
   /** 뷰어 넘김 순서를 여는 쪽이 지정할 때 (갤러리 = 그룹 순서). 없으면 소속 Branch seq / 루트 + 첫 Branch */
   nav?: ViewerReq;
+  /** 제목 줄 바로 아래에 끼울 요소 (캔버스 전용 표시) */
+  afterCap?: React.ReactNode;
 }) {
   const { doc, ui, setUI, ver, verMeta, server, commit, commitRaw } = useStore();
   const acts = useActions();
@@ -164,6 +166,7 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }
         {sc.group && <span className="grp nodrag" title="클로드 디자인 카테고리 (@dsCard group)">{sc.group}</span>}
         {sc.kind === 'capture' && <span className="kind nodrag" title="가져온 화면 (kind: capture) — 자체 씬으로 교체 예정">📷 캡처</span>}
       </div>
+      {afterCap}
       {sc.note
         ? <div className="snote nodrag" title="노트 편집"
             onMouseDown={e => e.stopPropagation()}
@@ -193,8 +196,36 @@ export function SceneCardBody({ sid, flowId, idx, tabId, isRoot, inCanvas, nav }
 }
 
 /* ---------- 씬 노드 ---------- */
+/** 같은 Scene이 Tab에 여러 번 나올 때 — Branch는 첫 등장 카드에만 그리므로, 나머지 카드엔 그리로 가는 표시 */
+function BranchesAtChip({ at }: { at: { nodeId: string; count: number } }) {
+  const { getNode, getZoom, setCenter } = useReactFlow();
+  const go = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const n = getNode(at.nodeId);
+    if (!n) return;
+    setCenter(n.position.x + CARD_W / 2, n.position.y + THUMB_H / 2,
+      { zoom: Math.max(getZoom(), 0.5), duration: 450 });
+    const el = document.querySelector(`.react-flow__node[data-id="${CSS.escape(at.nodeId)}"] .scene`);
+    if (el) {
+      el.classList.remove('flash');
+      void (el as HTMLElement).offsetWidth; // 연속 클릭에도 애니메이션 재시작
+      el.classList.add('flash');
+      setTimeout(() => el.classList.remove('flash'), 1600);
+    }
+  };
+  return (
+    <div className="brat nodrag"
+      title="같은 Scene이 이 Tab에 여러 번 나와서, 이어지는 Branch는 처음 나온 카드에만 그려요 — 클릭하면 그 카드로 이동"
+      onMouseDown={e => e.stopPropagation()}
+      onClick={go}>⑂ Branch {at.count}개는 첫 등장 카드에 ↗</div>
+  );
+}
+
 export function SceneNode({ id, data }: NodeProps) {
-  const d = data as { sid: string; flowId: string | null; idx: number; tabId: string | null; isRoot?: boolean };
+  const d = data as {
+    sid: string; flowId: string | null; idx: number; tabId: string | null; isRoot?: boolean;
+    branchesAt?: { nodeId: string; count: number };
+  };
   const acts = useActions();
   const cui = useCanvasUI();
   const vcls = useSceneVer(d.sid).cls;
@@ -213,7 +244,8 @@ export function SceneNode({ id, data }: NodeProps) {
       transition: 'transform .13s ease'
     }}>
       {d.isRoot && <div className="rcap">첫 Scene</div>}
-      <SceneCardBody sid={d.sid} flowId={d.flowId} idx={d.idx} tabId={d.tabId} isRoot={d.isRoot} inCanvas />
+      <SceneCardBody sid={d.sid} flowId={d.flowId} idx={d.idx} tabId={d.tabId} isRoot={d.isRoot} inCanvas
+        afterCap={d.branchesAt ? <BranchesAtChip at={d.branchesAt} /> : null} />
       {d.flowId && !d.isRoot && (
         <div className="gutter nodrag">
           <button className="ins" title="여기에 Scene 삽입"
