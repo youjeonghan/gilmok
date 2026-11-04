@@ -1,6 +1,6 @@
 /* 씬 뷰어 — 카드 클릭으로 열리는 앱 안 오버레이. 라인(Branch seq) 한정으로 ‹ › / ← → 넘김, Esc 닫기.
    순서는 여는 쪽이 정한다: 캔버스 카드 = 소속 Branch의 seq, 루트 카드 = 루트 + 첫 Branch seq, 갤러리 = 같은 그룹 순서. */
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { titleOf, themePath, isImageFile } from '../types';
 import { commonAncestor } from '../versions';
@@ -13,6 +13,15 @@ export interface ViewerReq {
 
 /** 버전 비교 — 기준 버전(base)과 현재 버전의 같은 Scene을 나란히. ids = 넘길 Scene 순서(차이 있는 것들) */
 export interface CompareReq { ids: string[]; index: number }
+
+/** 씬(iframe) 안을 클릭해 포커스가 들어가도 Esc·방향키가 먹도록 — 같은 출처 씬이면 iframe 문서에도 같은 핸들러를 건다.
+ *  핸들러는 ref로 넘겨 넘김·닫기 상태가 바뀌어도 다시 걸 필요가 없다. 다른 출처면 접근이 막혀 조용히 넘어간다. */
+type KeyRef = React.MutableRefObject<(e: KeyboardEvent) => void>;
+function bindFrameKeys(el: HTMLIFrameElement | null, ref: KeyRef) {
+  try {
+    el?.contentWindow?.addEventListener('keydown', e => ref.current(e), true);
+  } catch { /* 다른 출처 */ }
+}
 
 const ViewerCtx = createContext<{ open: (req: ViewerReq) => void; compare: (req: CompareReq) => void }>({ open: () => {}, compare: () => {} });
 export const useViewer = () => useContext(ViewerCtx);
@@ -54,19 +63,21 @@ function ViewerOverlay({ st, setSt }: { st: ViewerReq; setSt: (s: ViewerReq | nu
     setSt({ ...st, index: i });
   }, [st, n, setSt]);
 
+  const keyRef: KeyRef = useRef(() => {});
+  keyRef.current = (e: KeyboardEvent) => {
+    if (e.key === 'ArrowLeft') go(-1);
+    else if (e.key === 'ArrowRight') go(1);
+    else if (e.key === 'Escape') close();
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') go(-1);
-      else if (e.key === 'ArrowRight') go(1);
-      else if (e.key === 'Escape') close();
-      else return;
-      e.preventDefault();
-      e.stopPropagation();
-    };
+    const onKey = (e: KeyboardEvent) => keyRef.current(e);
     // capture 단계 — 캔버스(React Flow)·스토어(Ctrl+Z) 핸들러보다 먼저 받아 방향키·Esc를 독점
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [go, close]);
+  }, []);
 
   if (!doc) return null;
   const title = titleOf(doc, sid);
@@ -89,7 +100,7 @@ function ViewerOverlay({ st, setSt }: { st: ViewerReq; setSt: (s: ViewerReq | nu
           ? <div className="vempty">{theme === 'default' ? '미제작' : `'${theme}' 테마 미등록`}</div>
           : isImageFile(path)
             ? <img key={path} src={DATA + path + (sc.updated ? '?v=' + encodeURIComponent(sc.updated) : '')} alt={title} />
-            : <iframe key={path} src={DATA + path} title={title} />}
+            : <iframe key={path} src={DATA + path} title={title} onLoad={e => bindFrameKeys(e.currentTarget, keyRef)} />}
       </div>
       <button className="vnav next" disabled={st.index >= n - 1} title="다음 (→)"
         onClick={e => { e.stopPropagation(); go(1); }}>›</button>
@@ -101,7 +112,7 @@ function ViewerOverlay({ st, setSt }: { st: ViewerReq; setSt: (s: ViewerReq | nu
 /* ---------- 버전 비교 오버레이 — 기준 버전 ↔ 현재 버전 나란히 ---------- */
 type PaneScene = { title: string; file: string | null; note?: string; updated?: string } | null;
 
-function ComparePane({ label, sc, data, side }: { label: string; sc: PaneScene; data: string; side: 'base' | 'cur' }) {
+function ComparePane({ label, sc, data, side, keyRef }: { label: string; sc: PaneScene; data: string; side: 'base' | 'cur'; keyRef: KeyRef }) {
   return (
     <div className={'cpane ' + side}>
       <div className="cp-head"><span className="cp-ver">{label}</span>{sc && <b>{sc.title}</b>}</div>
@@ -112,7 +123,7 @@ function ComparePane({ label, sc, data, side }: { label: string; sc: PaneScene; 
             ? <div className="vempty">미제작</div>
             : isImageFile(sc.file)
               ? <img key={sc.file} src={data + sc.file + (sc.updated ? '?v=' + encodeURIComponent(sc.updated) : '')} alt={sc.title} />
-              : <iframe key={sc.file} src={data + sc.file} title={sc.title} />}
+              : <iframe key={sc.file} src={data + sc.file} title={sc.title} onLoad={e => bindFrameKeys(e.currentTarget, keyRef)} />}
       </div>
       {sc?.note ? <div className="cp-note">{sc.note}</div> : null}
     </div>
@@ -129,18 +140,20 @@ function CompareOverlay({ st, setSt }: { st: CompareReq; setSt: (s: CompareReq |
     if (i < 0 || i >= n) return;
     setSt({ ...st, index: i });
   }, [st, n, setSt]);
+  const keyRef: KeyRef = useRef(() => {});
+  keyRef.current = (e: KeyboardEvent) => {
+    if (e.key === 'ArrowLeft') go(-1);
+    else if (e.key === 'ArrowRight') go(1);
+    else if (e.key === 'Escape') close();
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') go(-1);
-      else if (e.key === 'ArrowRight') go(1);
-      else if (e.key === 'Escape') close();
-      else return;
-      e.preventDefault();
-      e.stopPropagation();
-    };
+    const onKey = (e: KeyboardEvent) => keyRef.current(e);
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [go, close]);
+  }, []);
   if (!doc || !m.base) return null;
   const a = baseDoc?.scenes[sid] || null;
   const b = doc.scenes[sid] || null;
@@ -169,8 +182,8 @@ function CompareOverlay({ st, setSt }: { st: CompareReq; setSt: (s: CompareReq |
       <button className="vnav prev" disabled={st.index === 0} title="이전 차이 (←)"
         onClick={e => { e.stopPropagation(); go(-1); }}>‹</button>
       <div className="cbody" onClick={e => e.stopPropagation()}>
-        <ComparePane label={'v' + m.base.id + (m.base.title ? ' · ' + m.base.title : '')} sc={a} data={DATA} side="base" />
-        <ComparePane label={'v' + m.cur + (curV?.title ? ' · ' + curV.title : '')} sc={b} data={DATA} side="cur" />
+        <ComparePane label={'v' + m.base.id + (m.base.title ? ' · ' + m.base.title : '')} sc={a} data={DATA} side="base" keyRef={keyRef} />
+        <ComparePane label={'v' + m.cur + (curV?.title ? ' · ' + curV.title : '')} sc={b} data={DATA} side="cur" keyRef={keyRef} />
       </div>
       <button className="vnav next" disabled={st.index >= n - 1} title="다음 차이 (→)"
         onClick={e => { e.stopPropagation(); go(1); }}>›</button>
